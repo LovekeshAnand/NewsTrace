@@ -1,0 +1,42 @@
+{
+  "name": "newstrace",
+  "version": "1.0.0",
+  "description": "Media Intelligence and Journalist Profiling System",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "migrate": "prisma migrate dev",
+    "generate": "prisma generate",
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.0",
+    "axios": "^1.6.0",
+    "bull": "^4.12.0",
+    "cheerio": "^1.0.0-rc.12",
+    "cheerio-httpcli": "^0.7.4",
+    "compression": "^1.7.4",
+    "compromise": "^14.10.0",
+    "cors": "^2.8.5",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.8.2",
+    "morgan": "^1.10.0",
+    "natural": "^6.10.0",
+    "node-cache": "^5.1.2",
+    "p-queue": "^9.0.0",
+    "prisma": "^5.7.0",
+    "puppeteer": "^21.5.0",
+    "redis": "^4.6.11",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "nodemon": "^3.0.2"
+  }
+}

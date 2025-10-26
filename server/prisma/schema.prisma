@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Outlet {
+  id            String        @id @default(uuid())
+  name          String        @unique
+  website       String
+  domain        String
+  detectedAt    DateTime      @default(now())
+  lastScrapedAt DateTime?
+  isActive      Boolean       @default(true)
+  metadata      Json?
+  journalists   Journalist[]
+  scrapeJobs    ScrapeJob[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([name])
+  @@index([domain])
+}
+
+model Journalist {
+  id              String                  @id @default(uuid())
+  name            String
+  email           String?
+  profileUrl      String?
+  bio             String?
+  imageUrl        String?
+  twitter         String?
+  linkedin        String?
+  outletId        String
+  outlet          Outlet                  @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  articles        Article[]
+  beats           JournalistBeat[]
+  articleCount    Int                     @default(0)
+  lastArticleDate DateTime?
+  metadata        Json?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@unique([name, outletId])
+  @@index([outletId])
+  @@index([name])
+}
+
+model Article {
+  id            String       @id @default(uuid())
+  title         String
+  url           String       @unique
+  publishedDate DateTime?
+  section       String?
+  summary       String?
+  keywords      String[]
+  entities      Json?
+  journalistId  String
+  journalist    Journalist   @relation(fields: [journalistId], references: [id], onDelete: Cascade)
+  topics        ArticleTopic[]
+  metadata      Json?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([journalistId])
+  @@index([publishedDate])
+  @@index([section])
+}
+
+model Topic {
+  id        String         @id @default(uuid())
+  name      String         @unique
+  category  String?
+  beats     JournalistBeat[]
+  articles  ArticleTopic[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([name])
+  @@index([category])
+}
+
+model JournalistBeat {
+  id           String     @id @default(uuid())
+  journalistId String
+  topicId      String
+  journalist   Journalist @relation(fields: [journalistId], references: [id], onDelete: Cascade)
+  topic        Topic      @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  articleCount Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([journalistId, topicId])
+  @@index([journalistId])
+  @@index([topicId])
+}
+
+model ArticleTopic {
+  id        String   @id @default(uuid())
+  articleId String
+  topicId   String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  relevance Float    @default(1.0)
+  createdAt DateTime @default(now())
+
+  @@unique([articleId, topicId])
+  @@index([articleId])
+  @@index([topicId])
+}
+
+model ScrapeJob {
+  id          String   @id @default(uuid())
+  outletId    String
+  outlet      Outlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  status      String   @default("pending")
+  progress    Int      @default(0)
+  totalFound  Int      @default(0)
+  errors      Json?
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  metadata    Json?
+
+  @@index([outletId])
+  @@index([status])
+}
+
+model ScrapingCache {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([key])
+  @@index([expiresAt])
+}
