@@ -1,460 +1,354 @@
-# NewsTrace - Media Intelligence & Journalist Profiling System
+# NewsTrace - Media Intelligence and Journalist Profiling System
 
-A powerful real-time intelligence system that autonomously discovers, maps, and analyzes journalists across media outlets.
+A full-stack real-time intelligence system designed to map and analyze journalists across media outlets. NewsTrace autonomously detects and extracts publicly available journalist profiles from news organizations, providing insights into newsroom structures and journalist networks.
 
-## 🚀 Features
-
-### Core Functionality
-- **Autonomous Website Discovery**: Uses SERP API to automatically find official websites
-- **Intelligent Scraping**: Multi-threaded, rate-limited scraping with retry logic
-- **Journalist Profiling**: Extracts names, bios, emails, social links, and article history
-- **Article Analysis**: NLP-powered keyword extraction and topic categorization
-- **Network Analysis**: Bipartite graphs showing journalist-topic relationships
-- **Trend Detection**: Identifies coverage patterns and popular topics
-- **CSV Export**: Export data for further analysis
-
-### Advanced Features (Winning Edge! 🏆)
-- **Queue System**: Bull queue with Redis for scalable job processing
-- **Smart Caching**: Reduces redundant requests
-- **Community Detection**: Finds clusters of journalists covering similar topics
-- **Similarity Matching**: Discover journalists with overlapping beats
-- **Cross-Outlet Analysis**: Compare multiple outlets simultaneously
-- **Real-time Progress**: Track scraping jobs in real-time
-- **Graph Visualization Data**: Export-ready graph data for D3.js/Sigma.js
-- **Comprehensive API**: RESTful API with extensive filtering and sorting
-
-## 📁 Project Structure
+## 🏗️ Architecture
 
 ```
 newstrace/
-├── src/
-│   ├── app.js                 # Express application entry point
-│   ├── routes/
-│   │   └── index.js          # API route definitions
-│   ├── controllers/
-│   │   ├── outletController.js
-│   │   ├── journalistController.js
-│   │   ├── scrapeController.js
-│   │   └── analysisController.js
-│   ├── services/
-│   │   ├── serpService.js     # SERP API integration
-│   │   ├── outletService.js   # Outlet management
-│   │   ├── journalistService.js
-│   │   ├── scrapeService.js   # Job queue management
-│   │   ├── analysisService.js # Advanced analytics
-│   │   └── exportService.js   # CSV/JSON export
-│   ├── scrapers/
-│   │   ├── baseScraper.js    # Base scraping functionality
-│   │   └── journalistScraper.js # Specialized journalist scraping
-│   ├── analysis/
-│   │   ├── nlpAnalyzer.js    # NLP & keyword extraction
-│   │   └── graphAnalyzer.js  # Network graph analysis
-│   ├── utils/
-│   │   └── middleware.js     # Express middleware
-│   ├── models/               # Prisma models
-│   └── config/
-│       ├── index.js          # Configuration
-│       ├── database.js       # Prisma client
-│       ├── logger.js         # Winston logger
-│       └── queue.js          # Bull queue setup
-├── prisma/
-│   └── schema.prisma         # Database schema
-├── exports/                  # Generated export files
-├── logs/                     # Application logs
-├── package.json
-├── .env.example
+├── client/                 # React Frontend (Vite + TailwindCSS)
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.js
+├── server/                 # Node.js Backend (Express + Prisma)
+│   ├── src/
+│   ├── prisma/
+│   ├── package.json
+│   └── .env
 └── README.md
 ```
 
-## 🛠️ Installation
+## 🚀 Tech Stack
 
-### Prerequisites
-- Node.js (v16 or higher)
-- PostgreSQL (v13 or higher)
-- Redis (v6 or higher)
+### Frontend (Client)
+- **React 19** - UI Framework
+- **Vite** - Build tool & dev server
+- **TailwindCSS 4** - Styling
+- **React Router** - Navigation
+- **Framer Motion & GSAP** - Animations
+- **Recharts** - Data visualization
+- **Lucide React** - Icons
 
-### Step 1: Clone and Install
+### Backend (Server)
+- **Node.js** - Runtime
+- **Express.js** - Web framework
+- **Prisma** - ORM
+- **PostgreSQL** - Database
+- **Redis (Upstash)** - Queue management
+- **Bull** - Job processing
+- **Puppeteer** - Web scraping
+- **Natural.js** - NLP analysis
+
+## 📋 Prerequisites
+
+Before you begin, ensure you have installed:
+
+- **Node.js** (v18 or higher) - [Download](https://nodejs.org/)
+- **PostgreSQL** (v14 or higher) - [Download](https://www.postgresql.org/download/)
+- **npm** or **yarn** - Comes with Node.js
+- **Git** - [Download](https://git-scm.com/)
+
+### Optional but Recommended
+- **Redis** (or use Upstash cloud) - [Upstash](https://upstash.com/)
+
+## 🛠️ Installation & Setup
+
+### Step 1: Clone the Repository
 
 ```bash
-git clone <your-repo>
+git clone <https://github.com/LovekeshAnand/NewsTrace>
 cd newstrace
-npm install
 ```
 
-### Step 2: Environment Setup
-
-Copy `.env.example` to `.env` and configure:
+### Step 2: Setup PostgreSQL Database
 
 ```bash
+# Login to PostgreSQL
+psql -U postgres
+
+# Create database
+CREATE DATABASE newstrace;
+
+# Create user (optional)
+CREATE USER newstrace_user WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE newstrace TO newstrace_user;
+
+# Exit
+\q
+```
+
+### Step 3: Setup Backend (Server)
+
+```bash
+# Navigate to server directory
+cd server
+
+# Install dependencies
+npm install
+
+# Create .env file
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `server/.env` with your configuration:
+
 ```env
+# Server Configuration
 PORT=3000
 NODE_ENV=development
 
-DATABASE_URL="postgresql://username:password@localhost:5432/newstrace?schema=public"
+# Database - Update with your credentials
+DATABASE_URL="postgresql://postgres:your_password@localhost:5432/newstrace"
 
-SERP_API_KEY=your_serp_api_key_here
+# SERP API - Get key from https://serpapi.com/
+SERP_API_KEY=your_serp_api_key
 
-REDIS_HOST=localhost
+# Redis - Using Upstash (or your local Redis)
+REDIS_HOST=your-redis-host.upstash.io
 REDIS_PORT=6379
+REDIS_PASSWORD=your_redis_password
 
-MAX_CONCURRENT_SCRAPES=5
-REQUEST_TIMEOUT=30000
+# Scraping Configuration
+MAX_CONCURRENT_SCRAPES=2
+REQUEST_TIMEOUT=90000
 MAX_RETRIES=3
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
 ```
 
-### Step 3: Database Setup
+**Important Environment Variables:**
+
+- `DATABASE_URL`: Your PostgreSQL connection string
+- `SERP_API_KEY`: Get free API key from [SerpAPI](https://serpapi.com/) for website detection
+- `REDIS_HOST/PORT/PASSWORD`: Redis credentials (get free from [Upstash](https://upstash.com/))
 
 ```bash
-# Generate Prisma client
-npx prisma generate
+# Generate Prisma Client
+npm run prisma:generate
 
-# Run migrations
-npx prisma migrate dev --name init
+# Run database migrations
+npm run prisma:migrate
 
-# (Optional) Seed database
-npm run seed
-```
-
-### Step 4: Start Services
-
-```bash
-# Start Redis (in separate terminal)
-redis-server
-
-# Start PostgreSQL
-# Make sure PostgreSQL is running
-
-# Start the application
+# Start the server
 npm run dev
 ```
 
-## 📊 API Documentation
+Server will start at `http://localhost:3000`
 
-### Base URL
+### Step 4: Setup Frontend (Client)
+
+Open a **new terminal window**:
+
+```bash
+# Navigate to client directory
+cd client
+
+# Install dependencies
+npm install
+
+# Create .env file (if needed)
+echo "VITE_API_URL=http://localhost:3000/api" > .env
+
+# Start the development server
+npm run dev
 ```
-http://localhost:3000/api
+
+Client will start at `http://localhost:5173`
+
+## 🎯 Quick Start
+
+### Starting the Application
+
+You need to run both server and client:
+
+**Terminal 1 - Backend:**
+```bash
+cd server
+npm run dev
 ```
+
+**Terminal 2 - Frontend:**
+```bash
+cd client
+npm run dev
+```
+
+Then open your browser to `http://localhost:5173`
+
+### Using the Application
+
+1. **Enter Media Outlet Name**
+   - Type the name of any news outlet (e.g., "The Hindu", "BBC News")
+   - Click "Process Outlet"
+
+2. **Wait for Processing**
+   - The system will automatically detect the website
+   - Scrape journalist profiles (5-15 minutes)
+   - Analyze and categorize data
+
+3. **View Results**
+   - Browse journalist profiles
+   - Explore network graphs
+   - Export data to CSV
+   - Search and filter journalists
+
+## 📡 API Endpoints
 
 ### Outlets
-
-#### Start Scraping
-```http
-POST /outlets/scrape
-Content-Type: application/json
-
-{
-  "name": "The Hindu",
-  "targetCount": 30
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Scrape job started",
-  "data": {
-    "scrapeJobId": "uuid",
-    "queueJobId": "123",
-    "outlet": {
-      "id": "uuid",
-      "name": "The Hindu",
-      "website": "https://thehindu.com"
-    }
-  }
-}
-```
-
-#### Get All Outlets
-```http
-GET /outlets
-```
-
-#### Get Outlet Stats
-```http
-GET /outlets/:id/stats
-```
-
-#### Analyze Outlet (with Graph Data)
-```http
-GET /outlets/:id/analyze
-```
-
-#### Export Outlet to CSV
-```http
-GET /outlets/:id/export
-```
-
-#### Export Graph Data
-```http
-GET /outlets/:id/export?format=graph
-```
+- `POST /api/outlets/process` - Process a new media outlet
+- `GET /api/outlets` - Get all processed outlets
+- `GET /api/outlets/:id` - Get specific outlet details
+- `GET /api/outlets/:id/export` - Export outlet data to CSV
+- `GET /api/outlets/:id/graph` - Get network graph data
 
 ### Journalists
+- `GET /api/journalists/search?q=query` - Search journalists
+- `GET /api/journalists/top?limit=10` - Get top journalists
+- `GET /api/journalists/:id` - Get journalist details
 
-#### Get Journalists by Outlet
-```http
-GET /outlets/:outletId/journalists?search=john&sortBy=articleCount&limit=50
-```
+### Statistics
+- `GET /api/statistics` - Get system-wide statistics
 
-#### Get Top Journalists
-```http
-GET /journalists?limit=10
-```
+### Health Check
+- `GET /api/health` - Check API status
 
-#### Search Journalists
-```http
-GET /journalists/search?q=politics
-```
 
-#### Get Journalist Details
-```http
-GET /journalists/:id
-```
+## 🔧 Configuration
 
-#### Get Journalist Stats
-```http
-GET /journalists/:id/stats
-```
+### Backend Configuration
 
-#### Find Similar Journalists
-```http
-GET /journalists/:id/similar?limit=10
-```
-
-### Scrape Jobs
-
-#### Get Scrape Job Status
-```http
-GET /scrape/jobs/:id
-```
-
-#### Get All Scrape Jobs
-```http
-GET /scrape/jobs?status=completed&limit=20
-```
-
-#### Get Queue Stats
-```http
-GET /scrape/queue/stats
-```
-
-### Analysis
-
-#### Compare Multiple Outlets
-```http
-POST /analysis/compare
-Content-Type: application/json
-
-{
-  "outletIds": ["uuid1", "uuid2", "uuid3"]
-}
-```
-
-#### Get Global Statistics
-```http
-GET /analysis/global-stats
-```
-
-#### Export All Outlets
-```http
-POST /analysis/export-all
-```
-
-#### Get Exported Files
-```http
-GET /analysis/exports
-```
-
-## 🎯 Usage Example
-
-### Complete Workflow
-
-```bash
-# 1. Start scraping The Hindu
-curl -X POST http://localhost:3000/api/outlets/scrape \
-  -H "Content-Type: application/json" \
-  -d '{"name": "The Hindu", "targetCount": 30}'
-
-# Response: { "scrapeJobId": "abc-123", ... }
-
-# 2. Check scrape progress
-curl http://localhost:3000/api/scrape/jobs/abc-123
-
-# 3. Once complete, get outlet analysis
-curl http://localhost:3000/api/outlets/{outlet-id}/analyze
-
-# 4. Export to CSV
-curl http://localhost:3000/api/outlets/{outlet-id}/export
-
-# 5. Get graph visualization data
-curl http://localhost:3000/api/outlets/{outlet-id}/export?format=graph
-```
-
-## 🧠 How It Works
-
-### Stage 0: Website Discovery
-1. User provides outlet name (e.g., "The Hindu")
-2. SERP API searches for official website
-3. System validates and stores outlet info
-
-### Stage 1: Journalist Extraction
-1. Discovers journalist pages using multiple strategies:
-   - Common URL patterns (/author/, /journalists/, etc.)
-   - Sitemap scanning
-   - Article byline extraction
-2. Scrapes profiles concurrently using queue system
-3. Extracts: name, bio, email, social links, articles
-
-### Stage 2: Intelligence Layer
-1. NLP analysis on article titles:
-   - Keyword extraction (TF-IDF)
-   - Entity recognition (people, places, organizations)
-   - Topic categorization
-2. Identifies journalist beats and specializations
-3. Calculates activity metrics
-
-### Stage 3: Network Analysis
-1. Builds bipartite graph (journalists ↔ topics)
-2. Detects communities of related journalists
-3. Calculates centrality and clustering metrics
-4. Exports graph data for visualization
-
-### Stage 4: Output
-1. Real-time progress updates
-2. Structured CSV exports
-3. JSON graph data
-4. Comprehensive API responses
-
-## 🏆 Winning Features
-
-### 1. **Multi-Strategy Scraping**
-   - Falls back to alternative methods if primary fails
-   - Scrapes from articles if profile pages unavailable
-
-### 2. **Advanced NLP**
-   - Uses `natural` and `compromise` libraries
-   - Proper noun extraction
-   - Context-aware categorization
-
-### 3. **Smart Graph Analysis**
-   - Community detection algorithms
-   - Journalist similarity scoring
-   - Cross-outlet pattern recognition
-
-### 4. **Production-Ready**
-   - Bull queue for job management
-   - Redis caching
-   - Comprehensive logging
-   - Error handling and retries
-   - Rate limiting
-
-### 5. **Scalable Architecture**
-   - PostgreSQL with indexed queries
-   - Queue-based processing
-   - Concurrent scraping with limits
-   - Modular design
-
-## 📈 Performance
-
-- Scrapes 30+ journalists in 2-5 minutes
-- Handles 100 requests per 15 minutes (rate limited)
-- Processes multiple outlets simultaneously
-- Smart caching reduces redundant requests by 60%
-
-## 🔒 Ethical Considerations
-
-- Only scrapes publicly available data
-- Respects robots.txt
-- Rate limiting to avoid server overload
-- No private or restricted data collection
-- User-agent identification
-
-## 🐛 Troubleshooting
-
-### Database Connection Issues
-```bash
-# Check PostgreSQL is running
-pg_isready
-
-# Test connection
-psql -U username -d newstrace
-```
-
-### Redis Connection Issues
-```bash
-# Check Redis is running
-redis-cli ping
-# Should return: PONG
-```
-
-### Scraping Failures
-- Check SERP API key is valid
-- Verify website is accessible
-- Check logs in `logs/error.log`
-
-## 📝 Development
-
-### Running Tests
-```bash
-npm test
-```
-
-### Database Migrations
-```bash
-# Create new migration
-npx prisma migrate dev --name migration_name
-
-# Reset database
-npx prisma migrate reset
-```
-
-### View Database
-```bash
-npx prisma studio
-```
-
-## 🚀 Deployment
-
-### Production Setup
-
-1. Set environment to production:
+**Database Connection**
 ```env
-NODE_ENV=production
+DATABASE_URL="postgresql://user:password@host:port/database"
 ```
 
-2. Use production database
-3. Set up proper Redis instance
-4. Configure logging to external service
-5. Use process manager (PM2):
+**Redis Configuration** (for job queue)
+```env
+REDIS_HOST=your-redis-host
+REDIS_PORT=6379
+REDIS_PASSWORD=your-password
+```
+
+**Scraping Settings**
+```env
+MAX_CONCURRENT_SCRAPES=2    # Parallel scraping jobs
+REQUEST_TIMEOUT=90000       # 90 seconds
+MAX_RETRIES=3               # Retry failed requests
+```
+
+### Frontend Configuration
+
+Create `client/.env`:
+
+```env
+VITE_API_URL=http://localhost:3000/api
+```
+
+For production:
+
+```env
+VITE_API_URL=https://your-api-domain.com/api
+```
+
+## 📦 Build for Production
+
+### Build Backend
 
 ```bash
-npm install -g pm2
-pm2 start src/app.js --name newstrace
-pm2 save
-pm2 startup
+cd server
+
+# Set production environment
+NODE_ENV=production
+
+# Run migrations
+npx prisma migrate deploy
+
+# Start server
+npm start
 ```
+
+### Build Frontend
+
+```bash
+cd client
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+The build output will be in `client/dist/`
+
+
+## 🧪 Testing
+
+### Test Backend API
+
+```bash
+# Check health
+curl http://localhost:3000/api/health
+
+# Get statistics
+curl http://localhost:3000/api/statistics
+
+# Process outlet
+curl -X POST http://localhost:3000/api/outlets/process \
+  -H "Content-Type: application/json" \
+  -d '{"outletName": "The Hindu", "minProfiles": 30}'
+```
+
+### Test Frontend
+
+1. Open `http://localhost:5173`
+2. Enter outlet name: "The Hindu"
+3. Click "Process Outlet"
+4. Wait for results
+5. Verify data displays correctly
+
+
+### Backend (Server)
+
+```bash
+npm run dev          # Start development server with nodemon
+npm start            # Start production server
+npm run prisma:generate   # Generate Prisma Client
+npm run prisma:migrate    # Run database migrations
+npm run prisma:studio     # Open Prisma Studio (DB GUI)
+```
+
+### Frontend (Client)
+
+```bash
+npm run dev          # Start Vite dev server
+npm run build        # Build for production
+npm run preview      # Preview production build
+npm run lint         # Run ESLint
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📄 License
 
-MIT License - See LICENSE file
-
-## 👥 Contributors
-
-Your Name - Your Team
+MIT License - see LICENSE file for details
 
 ## 🙏 Acknowledgments
 
-- SERP API for website discovery
-- Cheerio for HTML parsing
-- Puppeteer for JavaScript rendering
-- Bull for job queue management
-- Natural & Compromise for NLP
+- Natural.js for NLP capabilities
+- Compromise.js for entity extraction
+- Puppeteer for web scraping
+- Prisma for database ORM
+- React & Vite for frontend framework
 
 ---
 
-**Built for Excellence | Ready to Win** 🏆
+**Built with ❤️ for ethical journalism research**
