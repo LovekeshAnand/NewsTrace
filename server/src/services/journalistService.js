@@ -62,6 +62,12 @@ class JournalistService {
   }
 
   async saveArticles(journalistId, articles) {
+    const journalist = await prisma.journalist.findUnique({
+      where: { id: journalistId }
+    });
+
+    if (!journalist) return;
+
     const analyzedArticles = analyzeArticleBatch(articles);
 
     let savedCount = 0;
@@ -76,6 +82,15 @@ class JournalistService {
         });
 
         if (!article) {
+          // Verification check: ensure journalist name is somewhat related to the article
+          const titleMatch = articleData.title.toLowerCase().includes(journalist.name.toLowerCase());
+          const metaMatch = articleData.entities?.people?.some(p => p.toLowerCase().includes(journalist.name.toLowerCase()));
+
+          if (!titleMatch && !metaMatch && articleData.author && articleData.author !== journalist.name) {
+             logger.debug(`Skipping article ${articleData.url} - author mismatch: ${articleData.author} vs ${journalist.name}`);
+             continue;
+          }
+
           article = await prisma.article.create({
             data: {
               title: articleData.title,

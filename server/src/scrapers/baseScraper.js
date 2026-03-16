@@ -220,6 +220,63 @@ class BaseScraper {
       .trim();
   }
 
+  extractStructuredData($) {
+    const authors = new Set();
+
+    $('script[type="application/ld+json"]').each((i, el) => {
+      try {
+        const data = JSON.parse($(el).html());
+        const findAuthors = (obj) => {
+          if (!obj) return;
+
+          if (Array.isArray(obj)) {
+            obj.forEach(findAuthors);
+            return;
+          }
+
+          if (obj.author) {
+            if (Array.isArray(obj.author)) {
+              obj.author.forEach(a => {
+                if (typeof a === 'string') authors.add(a);
+                else if (a.name) authors.add(a.name);
+              });
+            } else if (typeof obj.author === 'string') {
+              authors.add(obj.author);
+            } else if (obj.author.name) {
+              authors.add(obj.author.name);
+            }
+          }
+
+          if (obj.creator) {
+            if (Array.isArray(obj.creator)) {
+              obj.creator.forEach(c => {
+                if (typeof c === 'string') authors.add(c);
+                else if (c.name) authors.add(c.name);
+              });
+            } else if (typeof obj.creator === 'string') {
+              authors.add(obj.creator);
+            } else if (obj.creator.name) {
+              authors.add(obj.creator.name);
+            }
+          }
+
+          if (obj['@type'] === 'Person' && obj.name) {
+            authors.add(obj.name);
+          }
+
+          // Recursively search in graph or other properties
+          if (obj['@graph']) findAuthors(obj['@graph']);
+        };
+
+        findAuthors(data);
+      } catch (e) {
+        // Skip invalid JSON
+      }
+    });
+
+    return Array.from(authors).map(name => this.cleanText(name)).filter(name => this.looksLikeName(name));
+  }
+
   async delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
@@ -445,18 +502,29 @@ looksLikeJournalistUrl(url) {
   looksLikeName(text) {
     if (!text) return false;
     
+    const cleaned = this.cleanText(text);
+    if (cleaned.length < 3 || cleaned.length > 50) return false;
+
     // Must have at least one space (first and last name)
-    if (!text.includes(' ')) return false;
+    if (!cleaned.includes(' ')) return false;
     
-    // Should not contain numbers
-    if (/\d/.test(text)) return false;
+    // Should not contain numbers or common special characters found in URLs/emails
+    if (/[0-9@:/\\._]/.test(cleaned)) return false;
+
+    // Should not contain common non-name words or generic titles
+    const badWords = [
+      'updated', 'published', 'posted', 'ago', 'min', 'hours', 'days',
+      'news desk', 'staff reporter', 'editor', 'bureau', 'correspondent',
+      'desk', 'press release', 'associated press', 'reuters', 'bloomberg',
+      'copywriter', 'admin', 'journalist', 'team', 'staff'
+    ];
     
-    // Should not be too long
-    if (text.length > 50) return false;
+    const lower = cleaned.toLowerCase();
+    if (badWords.some(word => lower.includes(word))) return false;
     
-    // Should not contain common non-name words
-    const badWords = ['updated', 'published', 'posted', 'ago', 'min', 'hours', 'days'];
-    if (badWords.some(word => text.toLowerCase().includes(word))) return false;
+    // Should have reasonable character composition (mostly letters and spaces)
+    const alphaSpaceCount = (cleaned.match(/[a-zA-Z\s]/g) || []).length;
+    if (alphaSpaceCount < cleaned.length * 0.9) return false;
     
     return true;
   }

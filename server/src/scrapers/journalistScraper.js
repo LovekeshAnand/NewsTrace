@@ -145,6 +145,14 @@ async scrapeJournalistProfile(url, baseUrl) {
 
     const info = this.extractJournalistInfo($, url);
     
+    // Fallback to structured data if name not found by selectors
+    if (!info.name) {
+      const structuredAuthors = this.extractStructuredData($);
+      if (structuredAuthors.length > 0) {
+        info.name = structuredAuthors[0];
+      }
+    }
+
     if (!info.name) {
       logger.debug(`❌ No name found for ${url}`);
       return;
@@ -319,11 +327,18 @@ async scrapeFromArticles(website, targetCount) {
   }
 
   extractAuthorFromArticle($) {
+    // Try structured data first
+    const structuredAuthors = this.extractStructuredData($);
+    if (structuredAuthors.length > 0) {
+      return structuredAuthors[0];
+    }
+
     const authorSelectors = [
       // Standard selectors
       '.author-name', '.byline', '[rel="author"]',
       '.article-author', 'span.author', 'a.author',
-      '[itemprop="author"]', '.posted-by',
+      '[itemprop="author"]', '.posted-by', '.author-link',
+      '.entry-author-name', '.author-card__name',
       
       // Times of India specific
       '.byline a', '.auth_details a', '.authors a',
@@ -386,28 +401,7 @@ async scrapeFromArticles(website, targetCount) {
   }
 
   isValidAuthorName(name) {
-    if (!name || name.length < 3 || name.length > 100) return false;
-    
-    // Must have at least one space (first and last name)
-    if (!name.includes(' ')) return false;
-    
-    // Should not start with numbers
-    if (/^\d/.test(name)) return false;
-    
-    // Should not contain common non-name indicators
-    const badWords = [
-      'updated', 'published', 'posted', 'ago', 'min', 'hours', 'days',
-      'share', 'follow', 'subscribe', 'http', 'www', 'read more'
-    ];
-    
-    const nameLower = name.toLowerCase();
-    if (badWords.some(word => nameLower.includes(word))) return false;
-    
-    // Should have reasonable character composition
-    const alphaCount = (name.match(/[a-zA-Z]/g) || []).length;
-    if (alphaCount < name.length * 0.7) return false;
-    
-    return true;
+    return this.looksLikeName(name);
   }
 }
 

@@ -17,16 +17,16 @@ class NLPAnalyzer {
     ]);
 
     this.topicCategories = {
-      politics: ['election', 'government', 'minister', 'parliament', 'congress', 'senate', 'vote', 'policy', 'law', 'bill', 'legislation'],
-      business: ['economy', 'market', 'stock', 'company', 'business', 'trade', 'finance', 'investment', 'revenue', 'profit'],
-      technology: ['tech', 'software', 'ai', 'digital', 'internet', 'app', 'smartphone', 'computer', 'data', 'cyber'],
-      sports: ['cricket', 'football', 'match', 'player', 'team', 'score', 'championship', 'tournament', 'game', 'sport'],
-      entertainment: ['film', 'movie', 'music', 'celebrity', 'actor', 'show', 'entertainment', 'bollywood', 'hollywood'],
-      world: ['international', 'global', 'country', 'nation', 'foreign', 'world', 'diplomatic', 'treaty'],
-      health: ['health', 'medical', 'hospital', 'doctor', 'disease', 'vaccine', 'patient', 'treatment', 'covid'],
-      science: ['research', 'study', 'scientist', 'discovery', 'experiment', 'science', 'space', 'climate'],
-      education: ['school', 'university', 'student', 'education', 'exam', 'college', 'learning', 'teacher'],
-      crime: ['police', 'crime', 'arrest', 'court', 'judge', 'murder', 'theft', 'investigation', 'case']
+      politics: ['election', 'government', 'minister', 'parliament', 'congress', 'senate', 'vote', 'policy', 'law', 'bill', 'legislation', 'political', 'democracy', 'republican', 'democrat'],
+      business: ['economy', 'market', 'stock', 'company', 'business', 'trade', 'finance', 'investment', 'revenue', 'profit', 'startup', 'venture', 'startup', 'merger', 'acquisition', 'corporate'],
+      technology: ['tech', 'software', 'ai', 'digital', 'internet', 'app', 'smartphone', 'computer', 'data', 'cyber', 'startup', 'innovation', 'gadget', 'crypto', 'blockchain', 'artificial intelligence'],
+      sports: ['cricket', 'football', 'match', 'player', 'team', 'score', 'championship', 'tournament', 'game', 'sport', 'olympics', 'league', 'athlete'],
+      entertainment: ['film', 'movie', 'music', 'celebrity', 'actor', 'show', 'entertainment', 'bollywood', 'hollywood', 'streaming', 'netflix', 'cinema', 'theatre'],
+      world: ['international', 'global', 'country', 'nation', 'foreign', 'world', 'diplomatic', 'treaty', 'border', 'geopolitics', 'summit', 'conflict', 'un', 'unsc', 'nato', 'asean'],
+      health: ['health', 'medical', 'hospital', 'doctor', 'disease', 'vaccine', 'patient', 'treatment', 'covid', 'wellness', 'mental health', 'nutrition', 'pharmaceutical'],
+      science: ['research', 'study', 'scientist', 'discovery', 'experiment', 'science', 'space', 'climate', 'environment', 'wildlife', 'astronomy', 'biology', 'physics', 'climate change'],
+      education: ['school', 'university', 'student', 'education', 'exam', 'college', 'learning', 'teacher', 'academic', 'campus', 'scholarship'],
+      crime: ['police', 'crime', 'arrest', 'court', 'judge', 'murder', 'theft', 'investigation', 'case', 'jail', 'prison', 'fraud', 'security']
     };
   }
 
@@ -99,18 +99,35 @@ class NLPAnalyzer {
     const scores = {};
 
     Object.entries(this.topicCategories).forEach(([category, keywords]) => {
-      scores[category] = keywords.reduce((score, keyword) => {
+      let score = 0;
+      keywords.forEach(keyword => {
         const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
         const matches = textLower.match(regex);
-        return score + (matches ? matches.length : 0);
-      }, 0);
+        if (matches) {
+          // Weighted scoring:
+          // 1. Base score for match
+          score += matches.length;
+
+          // 2. Extra weight for exact match of higher-value words (first word in categories)
+          if (textLower.startsWith(keyword)) score += 2;
+
+          // 3. Extra weight for multi-word keywords (more specific)
+          if (keyword.includes(' ')) score += 3;
+
+          // 4. More weight for longer keywords (more specific)
+          if (keyword.length > 5) score += 0.5;
+        }
+      });
+      scores[category] = score;
     });
 
-    const maxScore = Math.max(...Object.values(scores));
-    if (maxScore === 0) return 'general';
+    const sortedScores = Object.entries(scores)
+      .filter(([_, score]) => score > 0)
+      .sort((a, b) => b[1] - a[1]);
 
-    return Object.entries(scores)
-      .find(([_, score]) => score === maxScore)[0];
+    if (sortedScores.length === 0) return 'general';
+
+    return sortedScores[0][0];
   }
 
   analyzeArticleBatch(articles) {
