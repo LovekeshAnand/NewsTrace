@@ -1,7 +1,7 @@
 const http = require('http');
 
 const PORT = 3000;
-const BASE_URL = `http://localhost:${PORT}/api`;
+const BASE_URL = `https://newstrace-k9mf.onrender.com/api`;
 
 let token = '';
 
