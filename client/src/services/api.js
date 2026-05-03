@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://newstrace-k9mf.onrender.com';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://newstrace-k9mf.onrender.com/api';
 
 const getHeaders = () => {
   const h = { 'Content-Type': 'application/json' };

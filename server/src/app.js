@@ -15,7 +15,10 @@ import { limiter, errorHandler, notFound, requestTimer } from './middleware/erro
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: ['https://news-trace-sigma.vercel.app/', 'https://newstrace-k9mf.onrender.com'], credentials: true }));
+app.use(cors({ 
+  origin: ['https://news-trace-sigma.vercel.app', 'https://newstrace-k9mf.onrender.com', 'http://localhost:5173', 'http://localhost:3000'], 
+  credentials: true 
+}));
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
