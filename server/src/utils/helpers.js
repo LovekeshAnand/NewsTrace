@@ -1,155 +1,39 @@
-/**
- * Utility helper functions
- */
+export const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-const chunk = (array, size) => {
-  const chunks = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
+export const chunk = (arr, size) => {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
 };
 
-const deduplicateArray = (array, key) => {
+export const dedupe = (arr, key) => {
   const seen = new Set();
-  return array.filter(item => {
-    const value = key ? item[key] : item;
-    if (seen.has(value)) return false;
-    seen.add(value);
+  return arr.filter(item => {
+    const v = key ? item[key] : item;
+    if (seen.has(v)) return false;
+    seen.add(v);
     return true;
   });
 };
 
-const sanitizeString = (str) => {
-  if (!str) return '';
-  return str
-    .replace(/[<>]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+export const sanitize = (str) => str ? str.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim() : '';
+
+export const isValidUrl = (s) => { try { new URL(s); return true; } catch { return false; } };
+
+export const extractDomain = (url) => { try { return new URL(url).hostname; } catch { return null; } };
+
+export const truncate = (text, max = 100) => {
+  if (!text || text.length <= max) return text;
+  return text.substring(0, max) + '...';
 };
 
-const isValidUrl = (string) => {
-  try {
-    new URL(string);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-const isValidEmail = (email) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
-const extractDomain = (url) => {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname;
-  } catch {
-    return null;
-  }
-};
-
-const formatBytes = (bytes, decimals = 2) => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-};
-
-const calculatePercentage = (value, total) => {
-  if (total === 0) return 0;
-  return ((value / total) * 100).toFixed(2);
-};
-
-const generateSlug = (text) => {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim();
-};
-
-const truncateText = (text, maxLength = 100) => {
-  if (!text || text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
-};
-
-const randomElement = (array) => {
-  return array[Math.floor(Math.random() * array.length)];
-};
-
-const groupBy = (array, key) => {
-  return array.reduce((result, item) => {
-    const group = typeof key === 'function' ? key(item) : item[key];
-    if (!result[group]) result[group] = [];
-    result[group].push(item);
-    return result;
-  }, {});
-};
-
-const sortByKey = (array, key, descending = false) => {
-  return array.sort((a, b) => {
-    const aVal = typeof key === 'function' ? key(a) : a[key];
-    const bVal = typeof key === 'function' ? key(b) : b[key];
-    
-    if (aVal < bVal) return descending ? 1 : -1;
-    if (aVal > bVal) return descending ? -1 : 1;
-    return 0;
-  });
-};
-
-const retry = async (fn, maxRetries = 3, delay = 1000) => {
-  let lastError;
-  
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      if (i < maxRetries - 1) {
-        await sleep(delay * Math.pow(2, i));
-      }
+export const retry = async (fn, attempts = 3, delay = 1000) => {
+  let last;
+  for (let i = 0; i < attempts; i++) {
+    try { return await fn(); } catch (e) {
+      last = e;
+      if (i < attempts - 1) await sleep(delay * Math.pow(2, i));
     }
   }
-  
-  throw lastError;
-};
-
-const parseQueryParams = (query) => {
-  const params = {};
-  
-  if (query.limit) params.limit = parseInt(query.limit);
-  if (query.offset) params.offset = parseInt(query.offset);
-  if (query.page) params.page = parseInt(query.page);
-  if (query.sortBy) params.sortBy = query.sortBy;
-  if (query.order) params.order = query.order;
-  if (query.search) params.search = query.search;
-  
-  return params;
-};
-
-export default {
-  sleep,
-  chunk,
-  deduplicateArray,
-  sanitizeString,
-  isValidUrl,
-  isValidEmail,
-  extractDomain,
-  formatBytes,
-  calculatePercentage,
-  generateSlug,
-  truncateText,
-  randomElement,
-  groupBy,
-  sortByKey,
-  retry,
-  parseQueryParams
+  throw last;
 };

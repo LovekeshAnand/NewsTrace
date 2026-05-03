@@ -1,247 +1,145 @@
-import { prisma } from '../config/database.js';
-import  { analyzeArticleBatch } from '../analysis/nlpAnalyzer.js';
-import analyzeTrends from '../analysis/nlpAnalyzer.js';
+import Journalist from '../models/Journalist.js';
+import Article from '../models/Article.js';
+import Topic from '../models/Topic.js';
+import { analyzeArticleBatch } from '../analysis/nlpAnalyzer.js';
+import nlpAnalyzer from '../analysis/nlpAnalyzer.js';
 import { logger } from '../config/logger.js';
 
-class JournalistService {
-  async saveJournalists(outletId, journalists) {
-    const savedJournalists = [];
+export const saveJournalists = async (outletId, journalists) => {
+  const saved = [];
 
-    for (const journalistData of journalists) {
-      try {
-        let journalist = await prisma.journalist.findFirst({
-          where: { name: journalistData.name, outletId }
-        });
-
-        if (journalist) {
-          // Update existing journalist
-          journalist = await prisma.journalist.update({
-            where: { id: journalist.id },
-            data: {
-              email: journalistData.email || journalist.email,
-              profileUrl: journalistData.profileUrl || journalist.profileUrl,
-              bio: journalistData.bio || journalist.bio,
-              imageUrl: journalistData.imageUrl || journalist.imageUrl,
-              twitter: journalistData.twitter || journalist.twitter,
-              linkedin: journalistData.linkedin || journalist.linkedin,
-              articleCount: journalistData.articles?.length || journalist.articleCount,
-              lastArticleDate: journalistData.lastArticleDate || journalist.lastArticleDate
-            }
-          });
-        } else {
-          // Create new journalist
-          journalist = await prisma.journalist.create({
-            data: {
-              name: journalistData.name,
-              email: journalistData.email,
-              profileUrl: journalistData.profileUrl,
-              bio: journalistData.bio,
-              imageUrl: journalistData.imageUrl,
-              twitter: journalistData.twitter,
-              linkedin: journalistData.linkedin,
-              outletId,
-              articleCount: journalistData.articles?.length || 0,
-              lastArticleDate: journalistData.lastArticleDate
-            }
-          });
-        }
-
-        // Save articles if any
-        if (journalistData.articles?.length > 0) {
-          await this.saveArticles(journalist.id, journalistData.articles);
-        }
-
-        savedJournalists.push(journalist);
-        logger.info(`Saved journalist: ${journalist.name}`);
-      } catch (error) {
-        logger.error(`Error saving journalist ${journalistData.name}: ${error.message}`);
-      }
-    }
-
-    return savedJournalists;
-  }
-
-  async saveArticles(journalistId, articles) {
-    const analyzedArticles = analyzeArticleBatch(articles);
-
-    let savedCount = 0;
-    let latestDate = null;
-
-    for (const articleData of analyzedArticles) {
-      try {
-        const publishedDate = articleData.publishedDate ? new Date(articleData.publishedDate) : null;
-
-        let article = await prisma.article.findUnique({
-          where: { url: articleData.url }
-        });
-
-        if (!article) {
-          article = await prisma.article.create({
-            data: {
-              title: articleData.title,
-              url: articleData.url,
-              publishedDate,
-              section: articleData.section || articleData.category || null,
-              keywords: articleData.keywords || [],
-              entities: articleData.entities || {},
-              journalistId
-            }
-          });
-
-          savedCount++;
-          if (publishedDate && (!latestDate || publishedDate > latestDate)) {
-            latestDate = publishedDate;
-          }
-
-          // Link article to topic
-          if (articleData.category) {
-            await this.linkArticleToTopic(article.id, journalistId, articleData.category);
-          }
-        }
-      } catch (error) {
-        logger.debug(`Error saving article ${articleData.url}: ${error.message}`);
-      }
-    }
-
-    // Update journalist articleCount and lastArticleDate
-    if (savedCount > 0) {
-      await prisma.journalist.update({
-        where: { id: journalistId },
-        data: {
-          articleCount: { increment: savedCount },
-          lastArticleDate: latestDate
-        }
-      });
-    }
-  }
-
-  async linkArticleToTopic(articleId, journalistId, topicName) {
+  for (const data of journalists) {
     try {
-      let topic = await prisma.topic.findUnique({ where: { name: topicName } });
+      let journalist = await Journalist.findOne({ name: data.name, outlet: outletId });
 
-      if (!topic) {
-        topic = await prisma.topic.create({ data: { name: topicName } });
+      if (journalist) {
+        Object.assign(journalist, {
+          email: data.email || journalist.email,
+          profileUrl: data.profileUrl || journalist.profileUrl,
+          bio: data.bio || journalist.bio,
+          imageUrl: data.imageUrl || journalist.imageUrl,
+          twitter: data.twitter || journalist.twitter,
+          linkedin: data.linkedin || journalist.linkedin,
+          articleCount: data.articles?.length || journalist.articleCount,
+          lastArticleDate: data.lastArticleDate || journalist.lastArticleDate
+        });
+        await journalist.save();
+      } else {
+        journalist = await Journalist.create({
+          name: data.name, email: data.email, profileUrl: data.profileUrl,
+          bio: data.bio, imageUrl: data.imageUrl, twitter: data.twitter,
+          linkedin: data.linkedin, outlet: outletId,
+          articleCount: data.articles?.length || 0, lastArticleDate: data.lastArticleDate
+        });
       }
 
-      // Link article to topic
-      await prisma.articleTopic.upsert({
-        where: {
-          articleId_topicId: {
-            articleId,
-            topicId: topic.id
-          }
-        },
-        create: { articleId, topicId: topic.id },
-        update: {}
+      if (data.articles?.length > 0) {
+        await saveArticles(journalist._id, data.articles);
+      }
+
+      saved.push(journalist);
+    } catch (err) {
+      logger.error(`Error saving journalist ${data.name}: ${err.message}`);
+    }
+  }
+  return saved;
+};
+
+const saveArticles = async (journalistId, articles) => {
+  const analyzed = analyzeArticleBatch(articles);
+  let count = 0;
+  let latest = null;
+  const beatMap = {};
+
+  for (const a of analyzed) {
+    try {
+      const pubDate = a.publishedDate ? new Date(a.publishedDate) : null;
+      const exists = await Article.findOne({ url: a.url });
+      if (exists) continue;
+
+      await Article.create({
+        title: a.title, url: a.url, publishedDate: pubDate,
+        section: a.section || a.category || null,
+        keywords: a.keywords || [], entities: a.entities || {},
+        journalist: journalistId,
+        topics: a.category ? [{ name: a.category }] : []
       });
 
-      // Link journalist to topic (beat)
-      await prisma.journalistBeat.upsert({
-        where: {
-          journalistId_topicId: {
-            journalistId,
-            topicId: topic.id
-          }
-        },
-        create: { journalistId, topicId: topic.id, articleCount: 1 },
-        update: { articleCount: { increment: 1 } }
-      });
-    } catch (error) {
-      logger.debug(`Error linking topic ${topicName}: ${error.message}`);
+      count++;
+      if (pubDate && (!latest || pubDate > latest)) latest = pubDate;
+
+      if (a.category) {
+        beatMap[a.category] = (beatMap[a.category] || 0) + 1;
+        await Topic.findOneAndUpdate(
+          { name: a.category.toLowerCase() },
+          { $inc: { articleCount: 1 } },
+          { upsert: true }
+        );
+      }
+    } catch (err) {
+      if (err.code !== 11000) logger.debug(`Article save error: ${err.message}`);
     }
   }
 
-  async getJournalistsByOutlet(outletId, filters = {}) {
-    const where = { outletId };
-    if (filters.search) {
-      where.name = { contains: filters.search, mode: 'insensitive' };
+  if (count > 0) {
+    const beats = Object.entries(beatMap).map(([topic, articleCount]) => ({ topic, articleCount }));
+    await Journalist.findByIdAndUpdate(journalistId, {
+      $inc: { articleCount: count },
+      ...(latest && { lastArticleDate: latest }),
+      ...(beats.length > 0 && { $push: { beats: { $each: beats } } })
+    });
+  }
+};
+
+export const getJournalistsByOutlet = async (outletId, filters = {}) => {
+  const query = { outlet: outletId };
+  if (filters.search) query.name = { $regex: filters.search, $options: 'i' };
+
+  return Journalist.find(query)
+    .sort(filters.sortBy === 'name' ? { name: 1 } : { articleCount: -1 })
+    .skip(filters.offset || 0)
+    .limit(filters.limit || 100)
+    .populate('outlet', 'name')
+    .lean();
+};
+
+export const getJournalistById = async (id) => {
+  const journalist = await Journalist.findById(id).populate('outlet', 'name website').lean();
+  if (!journalist) return null;
+  const articles = await Article.find({ journalist: id }).sort({ publishedDate: -1 }).lean();
+  return { ...journalist, articles };
+};
+
+export const getTopJournalists = async (limit = 10) => {
+  return Journalist.find().sort({ articleCount: -1 }).limit(limit)
+    .populate('outlet', 'name').lean();
+};
+
+export const searchJournalists = async (query) => {
+  return Journalist.find({
+    $or: [
+      { name: { $regex: query, $options: 'i' } },
+      { bio: { $regex: query, $options: 'i' } }
+    ]
+  }).limit(50).populate('outlet', 'name').lean();
+};
+
+export const getJournalistStats = async (id) => {
+  const journalist = await getJournalistById(id);
+  if (!journalist) return null;
+
+  const trends = nlpAnalyzer.analyzeTrends(journalist.articles || []);
+
+  return {
+    journalist: {
+      name: journalist.name, email: journalist.email,
+      profileUrl: journalist.profileUrl, outlet: journalist.outlet?.name
+    },
+    stats: {
+      totalArticles: journalist.articleCount,
+      beats: journalist.beats || [],
+      recentArticles: (journalist.articles || []).slice(0, 5),
+      trends
     }
-
-    return await prisma.journalist.findMany({
-      where,
-      include: {
-        articles: { orderBy: { publishedDate: 'desc' }, take: 5 },
-        beats: { include: { topic: true } }
-      },
-      orderBy: filters.sortBy === 'name' ? { name: 'asc' } : { articleCount: 'desc' },
-      take: filters.limit || 100,
-      skip: filters.offset || 0
-    });
-  }
-
-  async getJournalistById(journalistId) {
-    return await prisma.journalist.findUnique({
-      where: { id: journalistId },
-      include: {
-        outlet: true,
-        articles: { orderBy: { publishedDate: 'desc' } },
-        beats: { include: { topic: true } }
-      }
-    });
-  }
-
-  async getTopJournalists(limit = 10) {
-    return await prisma.journalist.findMany({
-      orderBy: { articleCount: 'desc' },
-      take: limit,
-      include: {
-        outlet: true,
-        beats: { include: { topic: true } }
-      }
-    });
-  }
-
-  async searchJournalists(query) {
-    return await prisma.journalist.findMany({
-      where: {
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { bio: { contains: query, mode: 'insensitive' } }
-        ]
-      },
-      include: {
-        outlet: true,
-        beats: { include: { topic: true } }
-      },
-      take: 50
-    });
-  }
-
-  async getJournalistStats(journalistId) {
-    const journalist = await this.getJournalistById(journalistId);
-    if (!journalist) return null;
-
-    const articles = journalist.articles;
-    const trends = analyzeTrends(articles);
-
-    return {
-      journalist: {
-        name: journalist.name,
-        email: journalist.email,
-        profileUrl: journalist.profileUrl,
-        outlet: journalist.outlet.name
-      },
-      stats: {
-        totalArticles: journalist.articleCount,
-        beats: journalist.beats.map(b => ({
-          topic: b.topic.name,
-          articleCount: b.articleCount
-        })),
-        recentArticles: articles.slice(0, 5),
-        trends
-      }
-    };
-  }
-}
-
-const journalistService = new JournalistService();
-
-export const saveJournalists = journalistService.saveJournalists.bind(journalistService);
-export const getJournalistsByOutlet = journalistService.getJournalistsByOutlet.bind(journalistService);
-export const getJournalistById = journalistService.getJournalistById.bind(journalistService);
-export const getTopJournalists = journalistService.getTopJournalists.bind(journalistService);
-export const searchJournalists = journalistService.searchJournalists.bind(journalistService);
-export const getJournalistStats = journalistService.getJournalistStats.bind(journalistService);
-export const saveArticles = journalistService.saveArticles.bind(journalistService);
-
-export default journalistService;
+  };
+};

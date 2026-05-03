@@ -1,79 +1,38 @@
-import { compareOutlets as _compareOutlets, getGlobalStats as _getGlobalStats } from '../services/analysisService.js';
-import { exportAllOutletsToCSV, getExportedFiles as _getExportedFiles } from '../services/exportService.js';
-import { logger } from '../config/logger.js';
+import * as analysisService from '../services/analysisService.js';
+import { exportAllOutletsToCSV, getExportedFiles as listExports } from '../services/exportService.js';
 
-class AnalysisController {
-  async compareOutlets(req, res) {
-    try {
-      const { outletIds } = req.body;
-
-      if (!outletIds || !Array.isArray(outletIds) || outletIds.length < 2) {
-        return res.status(400).json({ 
-          error: 'At least 2 outlet IDs are required for comparison' 
-        });
-      }
-
-      const comparison = await _compareOutlets(outletIds);
-
-      res.json({
-        success: true,
-        data: comparison
-      });
-    } catch (error) {
-      logger.error('Error comparing outlets:', error);
-      res.status(500).json({ error: error.message });
+// Compare multiple outlets side by side
+export const compareOutlets = async (req, res, next) => {
+  try {
+    const { outletIds } = req.body;
+    if (!outletIds || !Array.isArray(outletIds) || outletIds.length < 2) {
+      return res.status(400).json({ success: false, error: 'At least 2 outlet IDs required' });
     }
-  }
+    const comparison = await analysisService.compareOutlets(outletIds);
+    res.json({ success: true, data: comparison });
+  } catch (err) { next(err); }
+};
 
-  async getGlobalStats(req, res) {
-    try {
-      const stats = await _getGlobalStats();
+// Get platform-wide statistics
+export const getGlobalStats = async (req, res, next) => {
+  try {
+    const stats = await analysisService.getGlobalStats();
+    res.json({ success: true, data: stats });
+  } catch (err) { next(err); }
+};
 
-      res.json({
-        success: true,
-        data: stats
-      });
-    } catch (error) {
-      logger.error('Error getting global stats:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
+// Export all outlets to a single CSV
+export const exportAllOutlets = async (req, res, next) => {
+  try {
+    const result = await exportAllOutletsToCSV();
+    res.json({ success: true, message: 'Export completed', data: result });
+  } catch (err) { next(err); }
+};
 
-  async exportAllOutlets(req, res) {
-    try {
-      const result = await exportAllOutletsToCSV();
-
-      res.json({
-        success: true,
-        message: 'Export completed',
-        data: result
-      });
-    } catch (error) {
-      logger.error('Error exporting all outlets:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  async getExportedFiles(req, res) {
-    try {
-      const files = await _getExportedFiles();
-
-      res.json({
-        success: true,
-        data: files
-      });
-    } catch (error) {
-      logger.error('Error getting exported files:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-}
-
-const analysisController = new AnalysisController();
-
-export const compareOutlets = analysisController.compareOutlets.bind(analysisController);
-export const getGlobalStats = analysisController.getGlobalStats.bind(analysisController);
-export const exportAllOutlets = analysisController.exportAllOutlets.bind(analysisController);
-export const getExportedFiles = analysisController.getExportedFiles.bind(analysisController);
-
-export default analysisController;
+// List previously exported files
+export const getExportedFiles = async (req, res, next) => {
+  try {
+    const files = await listExports();
+    res.json({ success: true, data: files });
+  } catch (err) { next(err); }
+};

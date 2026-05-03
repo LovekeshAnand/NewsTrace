@@ -1,72 +1,50 @@
-import dotenv from 'dotenv'
-import express, { json, urlencoded } from 'express';
+import dotenv from 'dotenv';
+dotenv.config();
+
+import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import { server } from './config/index.js';
-import routes from './routes/index.js';
-import middleware from './utils/middleware.js';
-
-
-dotenv.config()
-const { limiter, errorHandler, notFoundHandler, requestLogger } = middleware;
-
 import { logger } from './config/logger.js';
+import connectDB from './config/db.js';
+import routes from './routes/index.js';
+import { limiter, errorHandler, notFound, requestTimer } from './middleware/error.js';
 
 const app = express();
 
-// Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
-  credentials: true
-}));
+app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:3000'], credentials: true }));
 app.use(compression());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Body parsing
-app.use(json({ limit: '10mb' }));
-app.use(urlencoded({ extended: true, limit: '10mb' }));
-
-// Logging
-if (server.env === 'development') {
-  app.use(morgan('dev'));
-}
-app.use(requestLogger);
-
-// Rate limiting
+if (server.env === 'development') app.use(morgan('dev'));
+app.use(requestTimer);
 app.use('/api/', limiter);
-
-// Routes
 app.use('/api', routes);
-
-// Error handling
-app.use(notFoundHandler);
+app.use(notFound);
 app.use(errorHandler);
 
-// Start server
-const PORT = server.port;
+const start = async () => {
+  try {
+    await connectDB();
+    app.listen(server.port, () => {
+      logger.info(`NewsTrace running on port ${server.port} [${server.env}]`);
+      console.log(`\n  NewsTrace API → http://localhost:${server.port}\n`);
+    });
+  } catch (err) {
+    logger.error('Startup failed:', err);
+    process.exit(1);
+  }
+};
 
-app.listen(PORT, () => {
-  logger.info(`NewsTrace server running on port ${PORT}`);
-  logger.info(`Environment: ${server.env}`);
-  console.log(`
-  ╔═══════════════════════════════════════════╗
-  ║     NewsTrace API Server Started         ║
-  ║                                           ║
-  ║  Port: ${PORT}                              ║
-  ║  Environment: ${server.env}               ║
-  ║  Ready to trace journalists! 🚀          ║
-  ╚═══════════════════════════════════════════╝
-  `);
-});
+start();
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
-  logger.info('SIGTERM signal received: closing HTTP server');
-  app.close(() => {
-    logger.info('HTTP server closed');
-  });
+  logger.info('SIGTERM received, shutting down');
+  process.exit(0);
 });
 
 export default app;

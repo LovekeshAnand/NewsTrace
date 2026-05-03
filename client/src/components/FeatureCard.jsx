@@ -1,20 +1,18 @@
 import React from 'react';
 
 export default function FeatureCard({ icon: Icon, title, description, color = 'blue' }) {
-  const colorClasses = {
-    blue: 'from-blue-500 to-blue-600',
-    purple: 'from-purple-500 to-purple-600',
-    green: 'from-green-500 to-green-600',
-    orange: 'from-orange-500 to-orange-600'
+  const iconBg = {
+    blue: 'bg-blue-100 text-blue-600', indigo: 'bg-indigo-100 text-indigo-600',
+    green: 'bg-emerald-100 text-emerald-600', amber: 'bg-amber-100 text-amber-600'
   };
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 hover:border-slate-600 transition-all group">
-      <div className={`inline-flex p-3 rounded-lg bg-linear-to-br ${colorClasses[color]} mb-4 group-hover:scale-110 transition-transform`}>
-        <Icon size={24} className="text-white" />
+    <div className="bg-white border border-stone-200 rounded-xl p-5 hover:shadow-md hover:border-stone-300 transition-all group">
+      <div className={`inline-flex p-2.5 rounded-lg mb-3 ${iconBg[color] || iconBg.blue} group-hover:scale-110 transition-transform`}>
+        <Icon size={20} />
       </div>
-      <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-      <p className="text-slate-400">{description}</p>
+      <h3 className="text-base font-semibold text-stone-900 mb-1.5">{title}</h3>
+      <p className="text-sm text-stone-500 leading-relaxed">{description}</p>
     </div>
   );
 }

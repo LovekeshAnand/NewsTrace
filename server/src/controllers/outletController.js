@@ -1,176 +1,77 @@
-import { findOrCreateOutlet, getAllOutlets as _getAllOutlets, searchOutlets as _searchOutlets, getOutletById as _getOutletById, getOutletStats as _getOutletStats } from '../services/outletService.js';
-import { startScrape as _startScrape } from '../services/scrapeService.js';
-import analysisService from '../services/analysisService.js';
+import * as outletService from '../services/outletService.js';
+import * as scrapeService from '../services/scrapeService.js';
+import * as analysisService from '../services/analysisService.js';
 import { exportGraphData, exportOutletToCSV } from '../services/exportService.js';
-import { logger } from '../config/logger.js';
 
-class OutletController {
-  async createOutlet(req, res) {
-    try {
-      const { name } = req.body;
+// Create or find an outlet by name
+export const createOutlet = async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ success: false, error: 'Outlet name is required' });
+    const outlet = await outletService.findOrCreateOutlet(name);
+    res.status(201).json({ success: true, data: outlet });
+  } catch (err) { next(err); }
+};
 
-      if (!name) {
-        return res.status(400).json({ error: 'Outlet name is required' });
-      }
+// List all outlets with journalist counts
+export const getAllOutlets = async (req, res, next) => {
+  try {
+    const outlets = await outletService.getAllOutlets();
+    res.json({ success: true, data: outlets, count: outlets.length });
+  } catch (err) { next(err); }
+};
 
-      const outlet = await findOrCreateOutlet(name);
-      
-      res.status(201).json({
-        success: true,
-        data: outlet
-      });
-    } catch (error) {
-      logger.error('Error creating outlet:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
+// Search outlets by name or website
+export const searchOutlets = async (req, res, next) => {
+  try {
+    if (!req.query.q) return res.status(400).json({ success: false, error: 'Query required' });
+    const outlets = await outletService.searchOutlets(req.query.q);
+    res.json({ success: true, data: outlets, count: outlets.length });
+  } catch (err) { next(err); }
+};
 
-  async getAllOutlets(req, res) {
-    try {
-      const outlets = await _getAllOutlets();
-      
-      res.json({
-        success: true,
-        data: outlets,
-        count: outlets.length
-      });
-    } catch (error) {
-      logger.error('Error getting outlets:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
+// Get outlet by ID with journalists
+export const getOutletById = async (req, res, next) => {
+  try {
+    const outlet = await outletService.getOutletWithJournalists(req.params.id);
+    if (!outlet) return res.status(404).json({ success: false, error: 'Outlet not found' });
+    res.json({ success: true, data: outlet });
+  } catch (err) { next(err); }
+};
 
-  async searchOutlets(req, res) {
-    try {
-      const { q } = req.query;
+// Get aggregated stats for an outlet
+export const getOutletStats = async (req, res, next) => {
+  try {
+    const stats = await outletService.getOutletStats(req.params.id);
+    if (!stats) return res.status(404).json({ success: false, error: 'Outlet not found' });
+    res.json({ success: true, data: stats });
+  } catch (err) { next(err); }
+};
 
-      if (!q) {
-        return res.status(400).json({ error: 'Search query is required' });
-      }
+// Start a scraping job for an outlet
+export const startScrape = async (req, res, next) => {
+  try {
+    const { name, targetCount } = req.body;
+    if (!name) return res.status(400).json({ success: false, error: 'Outlet name is required' });
+    const result = await scrapeService.startScrape(name, req.user._id, targetCount || 30);
+    res.status(202).json({ success: true, message: 'Scrape job started', data: result });
+  } catch (err) { next(err); }
+};
 
-      const outlets = await _searchOutlets(q);
+// Run NLP/graph analysis on an outlet
+export const analyzeOutlet = async (req, res, next) => {
+  try {
+    const analysis = await analysisService.analyzeOutlet(req.params.id);
+    res.json({ success: true, data: analysis });
+  } catch (err) { next(err); }
+};
 
-      res.json({
-        success: true,
-        data: outlets,
-        count: outlets.length
-      });
-    } catch (error) {
-      logger.error('Error searching outlets:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  async getOutletById(req, res) {
-    try {
-      const { id } = req.params;
-      const outlet = await _getOutletById(id);
-
-      if (!outlet) {
-        return res.status(404).json({ error: 'Outlet not found' });
-      }
-
-      res.json({
-        success: true,
-        data: outlet
-      });
-    } catch (error) {
-      logger.error('Error getting outlet:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  async getOutletStats(req, res) {
-    try {
-      const { id } = req.params;
-      const stats = await _getOutletStats(id);
-
-      if (!stats) {
-        return res.status(404).json({ error: 'Outlet not found' });
-      }
-
-      res.json({
-        success: true,
-        data: stats
-      });
-    } catch (error) {
-      logger.error('Error getting outlet stats:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  async startScrape(req, res) {
-    try {
-      const { name, targetCount } = req.body;
-
-      if (!name) {
-        return res.status(400).json({ error: 'Outlet name is required' });
-      }
-
-      const result = await _startScrape(
-        name,
-        targetCount || 30
-      );
-
-      res.status(202).json({
-        success: true,
-        message: 'Scrape job started',
-        data: result
-      });
-    } catch (error) {
-      logger.error('Error starting scrape:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  async analyzeOutlet(req, res) {
-    try {
-      const { id } = req.params;
-      const analysis = await analysisService.analyzeOutlet(id);
-
-      res.json({
-        success: true,
-        data: analysis
-      });
-    } catch (error) {
-      logger.error('Error analyzing outlet:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  async exportOutlet(req, res) {
-    try {
-      const { id } = req.params;
-      const { format } = req.query;
-
-      let result;
-      if (format === 'graph') {
-        result = await exportGraphData(id);
-      } else {
-        result = await exportOutletToCSV(id);
-      }
-
-      res.json({
-        success: true,
-        message: 'Export completed',
-        data: result
-      });
-    } catch (error) {
-      logger.error('Error exporting outlet:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-}
-
-const outletController = new OutletController();
-
-export const createOutlet = outletController.createOutlet.bind(outletController);
-export const getAllOutlets = outletController.getAllOutlets.bind(outletController);
-export const searchOutlets = outletController.searchOutlets.bind(outletController);
-export const getOutletById = outletController.getOutletById.bind(outletController);
-export const getOutletStats = outletController.getOutletStats.bind(outletController);
-export const startScrape = outletController.startScrape.bind(outletController);
-export const analyzeOutlet = outletController.analyzeOutlet.bind(outletController);
-export const exportOutlet = outletController.exportOutlet.bind(outletController);
-
-export default outletController;
+// Export outlet data as CSV or graph JSON
+export const exportOutlet = async (req, res, next) => {
+  try {
+    const result = req.query.format === 'graph'
+      ? await exportGraphData(req.params.id)
+      : await exportOutletToCSV(req.params.id);
+    res.json({ success: true, message: 'Export completed', data: result });
+  } catch (err) { next(err); }
+};

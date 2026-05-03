@@ -1,64 +1,26 @@
-import { getScrapeJobStatus as _getScrapeJobStatus, getAllScrapeJobs as _getAllScrapeJobs, getQueueStats as _getQueueStats } from '../services/scrapeService.js';
-import { logger } from '../config/logger.js';
+import * as scrapeService from '../services/scrapeService.js';
 
-class ScrapeController {
-  async getScrapeJobStatus(req, res) {
-    try {
-      const { id } = req.params;
-      const status = await _getScrapeJobStatus(id);
+// Get status of a specific scrape job
+export const getScrapeJobStatus = async (req, res, next) => {
+  try {
+    const status = await scrapeService.getScrapeJobStatus(req.params.id);
+    res.json({ success: true, data: status });
+  } catch (err) { next(err); }
+};
 
-      res.json({
-        success: true,
-        data: status
-      });
-    } catch (error) {
-      logger.error('Error getting scrape job status:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
+// List all scrape jobs with optional filters
+export const getAllScrapeJobs = async (req, res, next) => {
+  try {
+    const { status, outletId, limit } = req.query;
+    const jobs = await scrapeService.getAllScrapeJobs({ status, outletId, limit: limit ? +limit : 50 });
+    res.json({ success: true, data: jobs, count: jobs.length });
+  } catch (err) { next(err); }
+};
 
-  async getAllScrapeJobs(req, res) {
-    try {
-      const { status, outletId, limit } = req.query;
-
-      const filters = {
-        status,
-        outletId,
-        limit: limit ? parseInt(limit) : 50
-      };
-
-      const jobs = await _getAllScrapeJobs(filters);
-
-      res.json({
-        success: true,
-        data: jobs,
-        count: jobs.length
-      });
-    } catch (error) {
-      logger.error('Error getting scrape jobs:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-
-  async getQueueStats(req, res) {
-    try {
-      const stats = await _getQueueStats();
-
-      res.json({
-        success: true,
-        data: stats
-      });
-    } catch (error) {
-      logger.error('Error getting queue stats:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-}
-
-const controller = new ScrapeController();
-
-export const getAllScrapeJobs = controller.getAllScrapeJobs.bind(controller);
-export const getScrapeJobStatus = controller.getScrapeJobStatus.bind(controller);
-export const getQueueStats = controller.getQueueStats.bind(controller);
-
-export default controller;
+// Get aggregate queue statistics
+export const getQueueStats = async (req, res, next) => {
+  try {
+    const stats = await scrapeService.getQueueStats();
+    res.json({ success: true, data: stats });
+  } catch (err) { next(err); }
+};

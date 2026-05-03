@@ -3,150 +3,103 @@ import { Globe, Search, Users, Newspaper, Database, CheckCircle, Loader2 } from 
 import { api } from '../services/api';
 
 export default function ScrapeLoadingAnimation({ scrapeData, jobId, onComplete }) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [jobStatus, setJobStatus] = useState(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const [step, setStep] = useState(0);
+  const [job, setJob] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
 
   const steps = [
-    { icon: Globe, text: 'Discovering website...', duration: 3000 },
-    { icon: Search, text: 'Finding journalist pages...', duration: 5000 },
-    { icon: Users, text: 'Extracting profiles...', duration: 8000 },
-    { icon: Newspaper, text: 'Scraping articles...', duration: 10000 },
-    { icon: Database, text: 'Saving to database...', duration: 2000 }
+    { icon: Globe, text: 'Discovering website...' },
+    { icon: Search, text: 'Finding journalist pages...' },
+    { icon: Users, text: 'Extracting profiles...' },
+    { icon: Newspaper, text: 'Scraping articles...' },
+    { icon: Database, text: 'Saving to database...' }
   ];
 
-  // Poll job status
   useEffect(() => {
     if (!jobId) return;
-
-    const pollStatus = async () => {
+    const poll = async () => {
       try {
-        const jobs = await api.getScrapeJobs(50);
-        const job = jobs.data?.find(j => j.id === jobId);
-        if (job) {
-          setJobStatus(job);
-          
-          // Update step based on progress or status
-          if (job.status === 'completed') {
-            setCurrentStep(4);
-            if (onComplete) {
-              setTimeout(() => onComplete(), 2000);
-            }
-          } else if (job.progress >= 80) setCurrentStep(4);
-          else if (job.progress >= 60) setCurrentStep(3);
-          else if (job.progress >= 40) setCurrentStep(2);
-          else if (job.progress >= 20) setCurrentStep(1);
-          else setCurrentStep(0);
+        const { data: jobs } = await api.getScrapeJobs(50);
+        const found = jobs?.find(j => j._id === jobId);
+        if (found) {
+          setJob(found);
+          if (found.status === 'completed') { 
+            setStep(4); 
+            if (id) clearInterval(id);
+            onComplete?.(); 
+          }
+          else if (found.status === 'failed') {
+            if (id) clearInterval(id);
+            onComplete?.();
+          }
+          else if (found.progress >= 80) setStep(4);
+          else if (found.progress >= 60) setStep(3);
+          else if (found.progress >= 40) setStep(2);
+          else if (found.progress >= 20) setStep(1);
+          else setStep(0);
         }
-      } catch (err) {
-        console.error('Failed to poll status:', err);
-      }
+      } catch {}
     };
-
-    pollStatus();
-    const interval = setInterval(pollStatus, 3000);
-    return () => clearInterval(interval);
+    poll();
+    const id = setInterval(poll, 3000);
+    return () => clearInterval(id);
   }, [jobId, onComplete]);
 
-  // Track elapsed time
   useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsedTime(prev => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
+    const id = setInterval(() => setElapsed(p => p + 1), 1000);
+    return () => clearInterval(id);
   }, []);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  const fmt = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div className="space-y-6">
-      <div className="bg-linear-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
-        <div className="flex items-center justify-between mb-4">
+    <div className="space-y-6 fade-in">
+      <div className="bg-[#f9fafb] border border-[#e5e7eb] rounded-xl p-6">
+        <div className="flex justify-between items-start mb-5">
           <div>
-            <p className="text-sm opacity-90 mb-1">Scraping in progress</p>
-            <p className="text-2xl font-bold">{scrapeData?.outletName || 'Processing...'}</p>
+            <p className="text-xs text-[#6b7280] uppercase tracking-wider mb-1 font-semibold">Current Task</p>
+            <p className="text-xl font-semibold text-[#111827]">{scrapeData?.outletName || 'Processing...'}</p>
           </div>
           <div className="text-right">
-            <p className="text-sm opacity-90">Elapsed</p>
-            <p className="text-2xl font-bold">{formatTime(elapsedTime)}</p>
+            <p className="text-xs text-[#6b7280] uppercase tracking-wider font-semibold">Elapsed</p>
+            <p className="text-lg font-medium text-[#111827] font-mono">{fmt(elapsed)}</p>
           </div>
         </div>
-        <div className="w-full bg-white/20 rounded-full h-3 mb-2">
-          <div 
-            className="bg-white h-3 rounded-full transition-all duration-500 shadow-lg" 
-            style={{ width: `${jobStatus?.progress || (currentStep / steps.length * 100)}%` }}
-          ></div>
+        <div className="w-full bg-[#e5e7eb] rounded-full h-1.5 mb-2 overflow-hidden">
+          <div className="bg-[#2563eb] h-1.5 rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${job?.progress || (step / steps.length * 100)}%` }} />
         </div>
-        <p className="text-sm opacity-90">
-          {jobStatus?.status === 'completed' ? '100' : (jobStatus?.progress || Math.round((currentStep / steps.length) * 100))}% complete
+        <p className="text-xs font-medium text-[#6b7280]">
+          {job?.status === 'completed' ? '100' : (job?.progress || Math.round(step / steps.length * 100))}% complete
         </p>
       </div>
 
       <div className="space-y-3">
-        {steps.map((step, idx) => {
-          const Icon = step.icon;
-          const isActive = idx === currentStep && jobStatus?.status !== 'completed';
-          const isPast = idx < currentStep || jobStatus?.status === 'completed';
-          
+        {steps.map((s, i) => {
+          const Icon = s.icon;
+          const active = i === step && job?.status !== 'completed' && job?.status !== 'failed';
+          const past = i < step || job?.status === 'completed';
           return (
-            <div
-              key={idx}
-              className={`flex items-center gap-4 p-4 rounded-xl transition-all duration-500 ${
-                isActive 
-                  ? 'bg-blue-500/20 border-2 border-blue-500 scale-105' 
-                  : isPast 
-                  ? 'bg-slate-800 border border-slate-700 opacity-60' 
-                  : 'bg-slate-800 border border-slate-700 opacity-40'
-              }`}
-            >
-              <div className={`p-2.5 rounded-lg transition-all ${
-                isActive 
-                  ? 'bg-blue-500 text-white animate-pulse' 
-                  : isPast 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-slate-700 text-slate-400'
+            <div key={i} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+              active ? 'bg-white border-[#2563eb] shadow-sm' :
+              past ? 'bg-white border-[#e5e7eb] opacity-70' : 'bg-[#f9fafb] border-transparent opacity-50'
+            }`}>
+              <div className={`p-2 rounded-lg ${
+                active ? 'bg-[#eff6ff] text-[#2563eb]' :
+                past ? 'bg-[#ecfdf5] text-[#059669]' : 'bg-[#f3f4f6] text-[#9ca3af]'
               }`}>
-                {isPast ? <CheckCircle size={20} /> : <Icon size={20} />}
+                {past ? <CheckCircle size={18} /> : <Icon size={18} />}
               </div>
-              <span className={`font-semibold flex-1 ${isActive ? 'text-white' : 'text-slate-400'}`}>
-                {step.text}
-              </span>
-              {isActive && (
-                <Loader2 className="animate-spin text-blue-400" size={20} />
-              )}
-              {isPast && (
-                <CheckCircle className="text-green-400" size={20} />
-              )}
+              <span className={`text-sm font-medium flex-1 ${active ? 'text-[#111827]' : 'text-[#4b5563]'}`}>{s.text}</span>
+              {active && <Loader2 className="animate-spin text-[#2563eb]" size={18} />}
             </div>
           );
         })}
       </div>
 
-      {jobStatus?.totalFound > 0 && (
-        <div className="bg-green-900/30 border border-green-700 rounded-xl p-4 flex items-center gap-3">
-          <CheckCircle className="text-green-400" size={24} />
-          <div>
-            <p className="text-white font-semibold">Found {jobStatus.totalFound} journalists</p>
-            <p className="text-sm text-slate-400">Data is being saved to database</p>
-          </div>
-        </div>
-      )}
-
-      {jobStatus?.status === 'completed' && (
-        <div className="bg-linear-to-r from-green-600 to-emerald-600 rounded-xl p-6 text-white text-center">
-          <CheckCircle size={48} className="mx-auto mb-3" />
-          <p className="text-2xl font-bold mb-2">Scraping Complete!</p>
-          <p className="opacity-90">Successfully scraped {jobStatus.totalFound} journalists</p>
-        </div>
-      )}
-
-      {jobStatus?.status === 'failed' && (
-        <div className="bg-red-900/30 border border-red-700 rounded-xl p-4 text-red-400">
-          <p className="font-semibold">Scraping failed. Please try again.</p>
+      {job?.status === 'failed' && (
+        <div className="bg-[#fef2f2] border border-[#fecaca] rounded-xl p-4 text-[#b91c1c] text-sm font-medium">
+          Task failed: {job.errorLog?.message || 'Unknown error occurred'}
         </div>
       )}
     </div>

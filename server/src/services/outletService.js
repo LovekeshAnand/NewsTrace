@@ -1,167 +1,78 @@
-import { outlet as _outlet } from '../config/database.js';
-import  serpService  from './serpService.js';
+import Outlet from '../models/Outlet.js';
+import Journalist from '../models/Journalist.js';
+import serpService from './serpService.js';
 import { logger } from '../config/logger.js';
 
-class OutletService {
-  async findOrCreateOutlet(outletName) {
-    try {
-      // Check if outlet already exists
-      let outlet = await _outlet.findFirst({ // <-- use _outlet, not prisma
-        where: { name: { equals: outletName, mode: 'insensitive' } }
-      });
+export const findOrCreateOutlet = async (outletName) => {
+  let outlet = await Outlet.findOne({ name: new RegExp(`^${outletName}$`, 'i') });
+  if (outlet) return outlet;
 
+  logger.info(`Discovering website for ${outletName}`);
+  const info = await serpService.findOutletWebsite(outletName);
 
-      if (outlet) {
-        logger.info(`Outlet ${outletName} already exists in database`);
-        return outlet;
-      }
+  outlet = await Outlet.create({
+    name: outletName,
+    website: info.website,
+    domain: info.domain,
+    metadata: { title: info.title, description: info.description }
+  });
+  logger.info(`Created outlet: ${outlet.name}`);
+  return outlet;
+};
 
-      // Discover website using SERP API
-      logger.info(`Discovering website for ${outletName}`);
-      const websiteInfo = await serpService.findOutletWebsite(outletName);
+export const getOutletById = async (id) => {
+  return Outlet.findById(id).lean();
+};
 
-      // Create outlet
-      outlet = await _outlet.create({
-        data: {
-          name: outletName,
-          website: websiteInfo.website,
-          domain: websiteInfo.domain,
-          metadata: {
-            title: websiteInfo.title,
-            description: websiteInfo.description
-          }
-        }
-      });
+export const getOutletWithJournalists = async (id) => {
+  const outlet = await Outlet.findById(id).lean();
+  if (!outlet) return null;
+  const journalists = await Journalist.find({ outlet: id })
+    .sort({ articleCount: -1 }).lean();
+  return { ...outlet, journalists };
+};
 
-      logger.info(`Created outlet: ${outlet.name} - ${outlet.website}`);
-      return outlet;
-    } catch (error) {
-      logger.error(`Error finding/creating outlet ${outletName}:`, error);
-      throw error;
+export const getAllOutlets = async () => {
+  const outlets = await Outlet.find().sort({ createdAt: -1 }).lean();
+  const counts = await Journalist.aggregate([
+    { $group: { _id: '$outlet', count: { $sum: 1 } } }
+  ]);
+  const countMap = Object.fromEntries(counts.map(c => [c._id.toString(), c.count]));
+  return outlets.map(o => ({ ...o, journalistCount: countMap[o._id.toString()] || 0 }));
+};
+
+export const searchOutlets = async (query) => {
+  return Outlet.find({
+    $or: [
+      { name: { $regex: query, $options: 'i' } },
+      { website: { $regex: query, $options: 'i' } }
+    ]
+  }).lean();
+};
+
+export const getOutletStats = async (id) => {
+  const outlet = await Outlet.findById(id).lean();
+  if (!outlet) return null;
+
+  const journalists = await Journalist.find({ outlet: id }).lean();
+  const totalArticles = journalists.reduce((s, j) => s + j.articleCount, 0);
+
+  const topicDist = {};
+  journalists.forEach(j => {
+    (j.beats || []).forEach(b => {
+      topicDist[b.topic] = (topicDist[b.topic] || 0) + b.articleCount;
+    });
+  });
+
+  return {
+    outlet: { name: outlet.name, website: outlet.website, lastScrapedAt: outlet.lastScrapedAt },
+    stats: {
+      totalJournalists: journalists.length,
+      totalArticles,
+      avgArticlesPerJournalist: journalists.length > 0 ? (totalArticles / journalists.length).toFixed(1) : 0,
+      topicDistribution: topicDist,
+      topJournalists: journalists.sort((a, b) => b.articleCount - a.articleCount).slice(0, 10)
+        .map(j => ({ name: j.name, articleCount: j.articleCount }))
     }
-  }
-
-  async getOutletById(outletId) {
-    return await _outlet.findUnique({
-      where: { id: outletId },
-      include: {
-        journalists: {
-          include: {
-            articles: true,
-            beats: {
-              include: { topic: true }
-            }
-          }
-        }
-      }
-    });
-  }
-
-  async getAllOutlets() {
-    return await _outlet.findMany({
-      include: {
-        _count: {
-          select: {
-            journalists: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-  }
-
-  async updateOutletLastScrape(outletId) {
-    return await _outlet.update({
-      where: { id: outletId },
-      data: { lastScrapedAt: new Date() }
-    });
-  }
-
-  async getOutletStats(outletId) {
-    const outlet = await _outlet.findUnique({
-      where: { id: outletId },
-      include: {
-        journalists: {
-          include: {
-            articles: true,
-            beats: {
-              include: { topic: true }
-            }
-          }
-        }
-      }
-    });
-
-    if (!outlet) return null;
-
-    const totalArticles = outlet.journalists.reduce(
-      (sum, j) => sum + j.articles.length,
-      0
-    );
-
-    const topicDistribution = {};
-    outlet.journalists.forEach(journalist => {
-      journalist.beats.forEach(beat => {
-        const topicName = beat.topic.name;
-        topicDistribution[topicName] = (topicDistribution[topicName] || 0) + beat.articleCount;
-      });
-    });
-
-    const topJournalists = outlet.journalists
-      .sort((a, b) => b.articleCount - a.articleCount)
-      .slice(0, 10)
-      .map(j => ({
-        name: j.name,
-        articleCount: j.articleCount,
-        profileUrl: j.profileUrl
-      }));
-
-    return {
-      outlet: {
-        name: outlet.name,
-        website: outlet.website,
-        lastScrapedAt: outlet.lastScrapedAt
-      },
-      stats: {
-        totalJournalists: outlet.journalists.length,
-        totalArticles,
-        averageArticlesPerJournalist: outlet.journalists.length > 0
-          ? (totalArticles / outlet.journalists.length).toFixed(2)
-          : 0,
-        topicDistribution,
-        topJournalists
-      }
-    };
-  }
-
-  async searchOutlets(query) {
-    return await _outlet.findMany({
-      where: {
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { website: { contains: query, mode: 'insensitive' } }
-        ]
-      },
-      include: {
-        _count: {
-          select: { journalists: true }
-        }
-      }
-    });
-  }
-}
-
-
-// Assuming these functions are already defined in outletService.js:
-// findOrCreateOutlet, getAllOutlets, searchOutlets, getOutletById, getOutletStats
-
-
-const outletService = new OutletService();
-
-export const findOrCreateOutlet = outletService.findOrCreateOutlet.bind(outletService);
-export const getAllOutlets = outletService.getAllOutlets.bind(outletService);
-export const searchOutlets = outletService.searchOutlets.bind(outletService);
-export const getOutletById = outletService.getOutletById.bind(outletService);
-export const getOutletStats = outletService.getOutletStats.bind(outletService);
-
-export default outletService;
+  };
+};

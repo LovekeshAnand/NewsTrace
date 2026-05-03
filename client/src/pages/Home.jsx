@@ -1,129 +1,89 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Play, ChevronRight, Newspaper, Users, BarChart3, Activity, Zap, Target, Database, TrendingUp } from 'lucide-react';
-import StatsCard from '../components/StatsCard';
-import FeatureCard from '../components/FeatureCard';
+import { Newspaper, Users, BarChart3, Activity } from 'lucide-react';
 import { api } from '../services/api';
 
-export default function HomePage({ setActiveTab }) {
-  const [globalStats, setGlobalStats] = useState(null);
+function StatsCard({ icon: Icon, label, value, loading }) {
+  return (
+    <div className="ppx-card p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <Icon size={20} className="text-[#6b7280]" />
+        <p className="text-[#4b5563] text-sm font-medium">{label}</p>
+      </div>
+      {loading ? (
+        <div className="h-8 w-16 bg-[#f3f4f6] animate-pulse rounded" />
+      ) : (
+        <p className="text-3xl font-semibold tracking-tight text-[#111827]">{value?.toLocaleString() || 0}</p>
+      )}
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
+    api.getGlobalStats().then(d => setStats(d.data)).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const loadStats = async () => {
-    try {
-      const data = await api.getGlobalStats();
-      setGlobalStats(data.data);
-    } catch (err) {
-      console.error('Failed to load stats:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="space-y-12">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden bg-linear-to-br from-blue-600 via-purple-600 to-pink-600 rounded-3xl p-12 text-white">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <Sparkles className="text-yellow-300" size={32} />
-            <span className="px-4 py-1 bg-white/20 rounded-full text-sm font-semibold backdrop-blur-sm">
-              AI-Powered Intelligence
-            </span>
+    <div className="space-y-8 fade-in">
+      <div className="flex justify-between items-end mb-6">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-[#111827] mb-1">Overview</h1>
+          <p className="text-[#6b7280]">Database statistics and recent system activity.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatsCard icon={Newspaper} label="Tracked Outlets" value={stats?.totals?.outlets} loading={loading} />
+        <StatsCard icon={Users} label="Journalist Profiles" value={stats?.totals?.journalists} loading={loading} />
+        <StatsCard icon={BarChart3} label="Indexed Articles" value={stats?.totals?.articles} loading={loading} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+        <div className="ppx-card p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Activity size={20} className="text-[#4b5563]" />
+            <h2 className="text-lg font-medium text-[#111827]">Recent Scrapes</h2>
           </div>
-          <h1 className="text-5xl font-bold mb-4 leading-tight">
-            Discover Journalists.<br />Track Stories.<br />Build Relationships.
-          </h1>
-          <p className="text-xl opacity-90 mb-8 max-w-2xl">
-            NewsTrace uses advanced web scraping and AI to help you find, analyze, and connect with journalists from news outlets worldwide.
-          </p>
-          <button
-            onClick={() => setActiveTab('scrape')}
-            className="bg-white text-purple-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-opacity-90 transition-all flex items-center gap-2 shadow-xl hover:scale-105"
-          >
-            <Play size={24} />
-            Start Scraping
-            <ChevronRight size={24} />
-          </button>
+          <div className="space-y-3">
+            {loading ? <div className="text-sm text-[#6b7280]">Loading...</div> : stats?.recentActivity?.length > 0 ? (
+              stats.recentActivity.slice(0, 5).map((job, i) => (
+                <div key={i} className="flex justify-between items-center py-2 border-b border-[#f3f4f6] last:border-0">
+                  <div>
+                    <p className="font-medium text-[#111827]">{job.outlet}</p>
+                    <p className="text-xs text-[#9ca3af]">{new Date(job.completedAt).toLocaleDateString()}</p>
+                  </div>
+                  <span className="text-[#059669] bg-[#ecfdf5] px-2 py-1 text-xs font-medium rounded-md">
+                    +{job.journalistsFound} profiles
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-[#6b7280]">No recent activity.</p>
+            )}
+          </div>
         </div>
-        <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-      </div>
 
-      {/* Stats Grid */}
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-          <TrendingUp size={28} />
-          Platform Statistics
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard icon={Newspaper} label="Total Outlets" value={globalStats?.totals.outlets} color="blue" loading={loading} />
-          <StatsCard icon={Users} label="Journalists" value={globalStats?.totals.journalists} color="purple" loading={loading} />
-          <StatsCard icon={BarChart3} label="Articles Tracked" value={globalStats?.totals.articles} color="green" loading={loading} />
-          <StatsCard icon={Activity} label="Active Outlets" value={globalStats?.totals.outlets} color="orange" loading={loading} />
+        <div className="ppx-card p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <BarChart3 size={20} className="text-[#4b5563]" />
+            <h2 className="text-lg font-medium text-[#111827]">Trending Topics</h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {loading ? <div className="text-sm text-[#6b7280]">Loading...</div> : stats?.topTopics?.length > 0 ? (
+              stats.topTopics.map((topic, i) => (
+                <div key={i} className="flex items-center gap-2 bg-[#f9fafb] border border-[#e5e7eb] rounded-md px-3 py-1.5">
+                  <span className="font-medium text-[#374151] text-sm capitalize">{topic.name}</span>
+                  <span className="text-[#9ca3af] text-xs">{topic.articleCount}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-[#6b7280]">No topic data available.</p>
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Features Section */}
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6">Key Features</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <FeatureCard
-            icon={Zap}
-            title="Lightning Fast Scraping"
-            description="Advanced web scraping technology extracts journalist data in minutes, not hours."
-            color="blue"
-          />
-          <FeatureCard
-            icon={Target}
-            title="Precision Targeting"
-            description="Find exactly the journalists you need with smart filtering and search capabilities."
-            color="purple"
-          />
-          <FeatureCard
-            icon={Database}
-            title="Comprehensive Database"
-            description="Store and organize journalist profiles, articles, and contact information in one place."
-            color="green"
-          />
-          <FeatureCard
-            icon={BarChart3}
-            title="Advanced Analytics"
-            description="Gain insights into journalist beats, article trends, and publication patterns."
-            color="orange"
-          />
-          <FeatureCard
-            icon={Users}
-            title="Network Mapping"
-            description="Visualize journalist networks and discover connections between reporters and topics."
-            color="blue"
-          />
-          <FeatureCard
-            icon={Activity}
-            title="Real-time Monitoring"
-            description="Track scraping jobs in real-time with detailed progress and status updates."
-            color="purple"
-          />
-        </div>
-      </div>
-
-      {/* CTA Section */}
-      <div className="bg-linear-to-r from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-8 text-center">
-        <h2 className="text-3xl font-bold text-white mb-4">Ready to Get Started?</h2>
-        <p className="text-slate-400 mb-6 max-w-2xl mx-auto">
-          Start scraping your first news outlet and discover journalists in minutes.
-        </p>
-        <button
-          onClick={() => setActiveTab('scrape')}
-          className="bg-linear-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all inline-flex items-center gap-2"
-        >
-          <Play size={24} />
-          Launch Scraper
-        </button>
       </div>
     </div>
   );

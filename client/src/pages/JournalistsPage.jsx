@@ -1,124 +1,72 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Users } from 'lucide-react';
+import { Search, Loader2, Users, FileText, Hash } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function JournalistsPage() {
-  const [journalists, setJournalists] = useState([]);
+  const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [query, setQuery] = useState('');
 
-  useEffect(() => {
-    fetchJournalists();
-  }, []);
-
-  const fetchJournalists = async () => {
+  const fetch = async () => {
     setLoading(true);
     try {
-      const data = await api.getJournalists(50);
-      setJournalists(data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch journalists:', err);
-    } finally {
-      setLoading(false);
-    }
+      const d = query ? await api.searchJournalists(query) : await api.getJournalists(50);
+      setList(d.data || []);
+    } catch {} finally { setLoading(false); }
   };
 
-  const searchJournalists = async () => {
-    if (!searchQuery) {
-      fetchJournalists();
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await api.searchJournalists(searchQuery);
-      setJournalists(data.data || []);
-    } catch (err) {
-      console.error('Search failed:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      searchJournalists();
-    }
-  };
+  useEffect(() => { fetch(); }, []);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-white mb-2">Journalists</h2>
-        <p className="text-slate-400">Search and explore journalist profiles</p>
-      </div>
-
-      <div className="flex gap-4">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Search journalists by name..."
-          className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-        />
-        <button
-          onClick={searchJournalists}
-          className="px-6 py-3 bg-linear-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:shadow-xl transition-all flex items-center gap-2 font-semibold"
-        >
-          <Search size={20} />
-          Search
-        </button>
+    <div className="space-y-6 fade-in max-w-5xl mx-auto">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-[#e5e7eb] pb-4 mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-[#111827] mb-1">Journalist Roster</h2>
+          <p className="text-sm text-[#6b7280]">Explore profiles, coverage beats, and indexed articles.</p>
+        </div>
+        <div className="flex w-full md:w-auto relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
+          <input type="text" value={query} onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && fetch()} placeholder="Search names or beats..."
+            className="ppx-input w-full md:w-64 pl-9 pr-4 py-2 text-sm" />
+        </div>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-blue-500" size={48} />
-        </div>
-      ) : journalists.length === 0 ? (
-        <div className="text-center py-20 bg-slate-800 rounded-xl border border-slate-700">
-          <Users size={48} className="mx-auto text-slate-600 mb-4" />
-          <p className="text-lg text-slate-300">No journalists found.</p>
+        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-[#6b7280]" size={24} /></div>
+      ) : list.length === 0 ? (
+        <div className="text-center py-16">
+          <Users size={32} className="mx-auto text-[#d1d5db] mb-4" />
+          <p className="text-[#6b7280] font-medium">No profiles match your criteria.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {journalists.map((journalist) => (
-            <div 
-              key={journalist.id} 
-              className="bg-linear-to-br from-slate-800 to-slate-900 rounded-xl border border-slate-700 p-6 hover:border-purple-500 transition-all group"
-            >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {list.map(j => (
+            <div key={j._id} className="ppx-card p-5 group">
               <div className="flex items-start gap-4 mb-4">
-                {journalist.imageUrl ? (
-                  <img
-                    src={journalist.imageUrl}
-                    alt={journalist.name}
-                    className="w-16 h-16 rounded-full object-cover border-2 border-slate-700 group-hover:border-purple-500 transition-colors"
-                  />
+                {j.imageUrl ? (
+                  <img src={j.imageUrl} alt={j.name} className="w-12 h-12 rounded-full object-cover border border-[#e5e7eb]" />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xl shrink-0">
-                    {journalist.name.charAt(0).toUpperCase()}
+                  <div className="w-12 h-12 rounded-full bg-[#f3f4f6] border border-[#e5e7eb] flex items-center justify-center text-[#4b5563] font-medium text-lg shrink-0">
+                    {j.name.charAt(0)}
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-white truncate group-hover:text-purple-400 transition-colors">
-                    {journalist.name}
-                  </h3>
-                  <p className="text-sm text-slate-400 truncate">{journalist.outlet?.name}</p>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <h3 className="font-medium text-[#111827] truncate group-hover:text-[#2563eb] transition-colors">{j.name}</h3>
+                  <p className="text-sm text-[#6b7280] truncate">{j.outlet?.name}</p>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between text-sm mb-3 py-2 px-3 bg-slate-900 rounded-lg">
-                <span className="text-slate-400">Articles</span>
-                <span className="font-bold text-white">{journalist.articleCount}</span>
+              
+              <div className="mt-4 pt-4 border-t border-[#f3f4f6] flex items-center justify-between text-sm">
+                <span className="flex items-center gap-1.5 text-[#4b5563]"><FileText size={14} className="text-[#9ca3af]"/> Articles</span>
+                <span className="font-medium text-[#111827]">{j.articleCount || 0}</span>
               </div>
               
-              {journalist.beats && journalist.beats.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {journalist.beats.slice(0, 3).map((beat) => (
-                    <span
-                      key={beat.id}
-                      className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs border border-purple-500/30 font-medium"
-                    >
-                      {beat.topic.name}
+              {j.beats?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {j.beats.slice(0, 3).map((b, i) => (
+                    <span key={i} className="flex items-center text-[11px] font-medium text-[#4b5563] bg-[#f3f4f6] px-1.5 py-0.5 rounded">
+                      <Hash size={10} className="mr-0.5 opacity-50"/> {b.topic}
                     </span>
                   ))}
                 </div>

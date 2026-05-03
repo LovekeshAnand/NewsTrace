@@ -1,6 +1,6 @@
-import  get  from 'axios';
+import axios from 'axios';
 import { serp } from '../config/index.js';
-import { logger as _error } from '../config/logger.js';
+import { logger } from '../config/logger.js';
 
 class SerpService {
   constructor() {
@@ -10,89 +10,67 @@ class SerpService {
 
   async findOutletWebsite(outletName) {
     try {
-      const params = {
-        api_key: this.apiKey,
-        q: `${outletName} official website news`,
-        num: 5
-      };
+      const { data } = await axios.get(this.baseUrl, {
+        params: { api_key: this.apiKey, q: `${outletName} official website news`, num: 5 }
+      });
 
-      const response = await get(this.baseUrl, { params });
-      
-      if (response.data && response.data.organic_results) {
-        const results = response.data.organic_results;
-        
-        // Filter for official looking domains
-        const officialResult = results.find(result => {
-          const url = result.link.toLowerCase();
-          const title = result.title.toLowerCase();
-          const outletLower = outletName.toLowerCase();
-          
-          return (
-            url.includes(outletLower.replace(/\s+/g, '')) ||
-            title.includes(outletLower) ||
-            this.isNewsWebsite(url)
-          );
+      if (data?.organic_results) {
+        const match = data.organic_results.find(r => {
+          const url = r.link.toLowerCase();
+          const title = r.title.toLowerCase();
+          const name = outletName.toLowerCase();
+          return url.includes(name.replace(/\s+/g, '')) || title.includes(name) || this.looksLikeNews(url);
         });
 
-        if (officialResult) {
-          const url = new URL(officialResult.link);
-          return {
-            website: officialResult.link,
-            domain: url.hostname,
-            title: officialResult.title,
-            description: officialResult.snippet
-          };
+        if (match) {
+          const u = new URL(match.link);
+          return { website: match.link, domain: u.hostname, title: match.title, description: match.snippet };
         }
       }
-
       throw new Error('Could not find official website');
-    } catch (error) {
-      _error('SERP API error:', error);
-      throw new Error(`Failed to find website for ${outletName}: ${error.message}`);
+    } catch (err) {
+      logger.error('SERP lookup failed:', err.message);
+      throw new Error(`Failed to find website for ${outletName}: ${err.message}`);
     }
   }
 
-  isNewsWebsite(url) {
-    const newsIndicators = [
-      '.com', '.news', '.in', '.org',
-      'news', 'times', 'post', 'journal',
-      'daily', 'tribune', 'herald', 'press'
-    ];
-    
-    return newsIndicators.some(indicator => url.includes(indicator));
+  looksLikeNews(url) {
+    return ['news', 'times', 'post', 'journal', 'daily', 'tribune', 'herald', 'press']
+      .some(w => url.includes(w));
   }
 
-  async searchJournalistPages(domain, outletName) {
+  async searchJournalistPages(domain) {
+    const queries = ['authors', 'journalists', 'writers', 'contributors', 'staff']
+      .map(q => `site:${domain} ${q}`);
+
+    const results = [];
+    for (const q of queries) {
+      try {
+        const { data } = await axios.get(this.baseUrl, {
+          params: { api_key: this.apiKey, q, num: 10 }
+        });
+        if (data?.organic_results) results.push(...data.organic_results);
+      } catch { /* skip failed queries */ }
+    }
+    return [...new Set(results.map(r => r.link))];
+  }
+  async searchTopic(query) {
     try {
-      const queries = [
-        `site:${domain} authors`,
-        `site:${domain} journalists`,
-        `site:${domain} writers`,
-        `site:${domain} contributors`,
-        `site:${domain} staff`
-      ];
-
-      const allResults = [];
-
-      for (const query of queries) {
-        const params = {
-          api_key: this.apiKey,
-          q: query,
-          num: 10
-        };
-
-        const response = await get(this.baseUrl, { params });
-        
-        if (response.data && response.data.organic_results) {
-          allResults.push(...response.data.organic_results);
-        }
+      const { data } = await axios.get(this.baseUrl, {
+        params: { api_key: this.apiKey, q: query, num: 8, tbm: 'nws' }
+      });
+      if (data?.news_results) {
+        return data.news_results.map(r => ({
+          title: r.title,
+          link: r.link,
+          snippet: r.snippet,
+          source: r.source,
+          date: r.date
+        }));
       }
-
-      // Deduplicate and return unique URLs
-      const uniqueUrls = [...new Set(allResults.map(r => r.link))];
-      return uniqueUrls;
-    } catch (error) {
-      _error('Error searching journalist pages:', error);
+      return [];
+    } catch (err) {
+      logger.error('SERP topic search failed:', err.message);
       return [];
     }
   }

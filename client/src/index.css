@@ -1,55 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
+* { box-sizing: border-box; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Inter', -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #020617;
+  background-color: #ffffff;
+  color: #1a1a1a;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Sophisticated Perplexity-style components */
+.ppx-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  transition: all 0.2s ease;
 }
 
-.animate-spin {
-  animation: spin 1s linear infinite;
+.ppx-card:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+.ppx-input {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  color: #111827;
+  transition: all 0.15s ease;
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.ppx-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 10px;
+.ppx-btn {
+  background: #111827;
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.15s ease;
 }
 
-::-webkit-scrollbar-track {
-  background: #0f172a;
+.ppx-btn:hover:not(:disabled) {
+  background: #1f2937;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 5px;
+.ppx-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+.ppx-btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
 }
+
+.ppx-btn-secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+::selection {
+  background: rgba(37,99,235,0.2);
+  color: #111827;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }

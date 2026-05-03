@@ -1,26 +1,23 @@
-import dotenv from 'dotenv'
-
-dotenv.config()
+import dotenv from 'dotenv';
+dotenv.config();
 
 export const server = {
-    port: process.env.PORT || 3000,
-    env: process.env.NODE_ENV || 'development'
+  port: process.env.PORT || 3000,
+  env: process.env.NODE_ENV || 'development'
 };
-export const database = {
-    url: process.env.DATABASE_URL
-};
+
 export const serp = {
-    apiKey: process.env.SERP_API_KEY,
-    baseUrl: 'https://serpapi.com/search'
+  apiKey: process.env.SERP_API_KEY,
+  baseUrl: 'https://serpapi.com/search'
 };
-export const redis = {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT) || 6379,
-    password: process.env.REDIS_PASSWORD || '',
+
+export const jwt = {
+  secret: process.env.JWT_SECRET || 'fallback_secret',
+  expire: process.env.JWT_EXPIRE || '7d'
 };
 
 export const scraping = {
-  maxConcurrent: 3, // Increased back to 3 for parallel processing
+  maxConcurrent: parseInt(process.env.MAX_CONCURRENT_SCRAPES) || 3,
   timeout: parseInt(process.env.REQUEST_TIMEOUT) || 30000,
   maxRetries: parseInt(process.env.MAX_RETRIES) || 3,
   userAgents: [
@@ -31,10 +28,6 @@ export const scraping = {
 };
 
 export const rateLimit = {
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000,
-    maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100
-};
-export const cache = {
-    ttl: 3600, // 1 hour
-    checkPeriod: 600 // 10 minutes
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000,
+  maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 200
 };
