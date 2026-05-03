@@ -1,5 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://newstrace-k9mf.onrender.com/api';
-
+const RAW_URL = import.meta.env.VITE_API_URL || 'https://newstrace-k9mf.onrender.com/api';
+const API_BASE = RAW_URL.endsWith('/api') ? RAW_URL : RAW_URL.replace(/\/+$/, '') + '/api';
 const getHeaders = () => {
   const h = { 'Content-Type': 'application/json' };
   const token = localStorage.getItem('nt_token');
