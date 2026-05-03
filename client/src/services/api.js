@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://newstrace-k9mf.onrender.com';
 
 const getHeaders = () => {
   const h = { 'Content-Type': 'application/json' };
